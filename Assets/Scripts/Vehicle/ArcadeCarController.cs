@@ -78,7 +78,7 @@ public class ArcadeCarController : MonoBehaviour
     /// </summary>
     private void ApplySteering()
     {
-        float forwardSpeed = Vector3.Dot(carRigidbody.velocity, transform.forward);
+        float forwardSpeed = Vector3.Dot(carRigidbody.linearVelocity, transform.forward);
         if (Mathf.Abs(forwardSpeed) < minimumTurningSpeed || Mathf.Approximately(steeringInput, 0f))
         {
             return;
@@ -96,10 +96,10 @@ public class ArcadeCarController : MonoBehaviour
     /// </summary>
     private void LimitForwardSpeed()
     {
-        float forwardSpeed = Vector3.Dot(carRigidbody.velocity, transform.forward);
+        float forwardSpeed = Vector3.Dot(carRigidbody.linearVelocity, transform.forward);
         float limitedSpeed = Mathf.Clamp(forwardSpeed, -maxSpeed, maxSpeed);
         Vector3 forwardVelocity = transform.forward * forwardSpeed;
-        Vector3 sidewaysAndVerticalVelocity = carRigidbody.velocity - forwardVelocity;
-        carRigidbody.velocity = transform.forward * limitedSpeed + sidewaysAndVerticalVelocity;
+        Vector3 sidewaysAndVerticalVelocity = carRigidbody.linearVelocity - forwardVelocity;
+        carRigidbody.linearVelocity = transform.forward * limitedSpeed + sidewaysAndVerticalVelocity;
     }
 }
