@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -14,6 +15,10 @@ public class PlayerCarStats : MonoBehaviour
 
     [Tooltip("現在装備中のシャーシです。")]
     [SerializeField] private CarPartData equippedChassis;
+
+    [Header("所持パーツ")]
+    [Tooltip("ショップで購入済みのパーツ一覧です。")]
+    [SerializeField] private List<CarPartData> ownedParts = new List<CarPartData>();
 
     [Header("基本ステータス")]
     [Tooltip("パーツ未装備時の最高速度です。")]
@@ -36,6 +41,7 @@ public class PlayerCarStats : MonoBehaviour
     public float CurrentMaxSpeed => currentMaxSpeed;
     public float CurrentAcceleration => currentAcceleration;
     public float CurrentHandling => currentHandling;
+    public IReadOnlyList<CarPartData> OwnedParts => ownedParts;
 
     private void Awake()
     {
@@ -98,5 +104,28 @@ public class PlayerCarStats : MonoBehaviour
     {
         equippedChassis = chassis;
         CalculateStats();
+    }
+
+    /// <summary>
+    /// ショップで購入したパーツを所持リストへ追加します。
+    /// 同じアセットの重複登録は行わず、追加できた場合だけtrueを返します。
+    /// </summary>
+    public bool AddOwnedPart(CarPartData part)
+    {
+        if (part == null || ownedParts.Contains(part))
+        {
+            return false;
+        }
+
+        ownedParts.Add(part);
+        return true;
+    }
+
+    /// <summary>
+    /// 指定したパーツをすでに所持しているか確認します。
+    /// </summary>
+    public bool HasPart(CarPartData part)
+    {
+        return part != null && ownedParts.Contains(part);
     }
 }
