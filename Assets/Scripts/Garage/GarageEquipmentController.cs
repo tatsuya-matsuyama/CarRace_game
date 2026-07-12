@@ -188,23 +188,24 @@ public class GarageEquipmentController : MonoBehaviour
         Text title = CreateTextObject(panel.transform, "Title", new Vector2(.05f, .88f), new Vector2(.95f, .98f), 34, "GARAGE  -  PARTS SETTING").GetComponent<Text>();
         title.color = new Color(1f, .84f, .2f);
 
-        detailsText = CreateTextObject(panel.transform, "EquipmentDetails", new Vector2(.06f, .34f), new Vector2(.52f, .82f), 24, string.Empty).GetComponent<Text>();
+        // 左側は装備一覧専用にし、右側の棒グラフと重ならない領域に固定します。
+        detailsText = CreateTextObject(panel.transform, "EquipmentDetails", new Vector2(.06f, .48f), new Vector2(.50f, .82f), 20, string.Empty).GetComponent<Text>();
         detailsText.alignment = TextAnchor.UpperLeft;
 
         for (int i = 0; i < EquipmentTypes.Length; i++)
         {
             CarPartType type = EquipmentTypes[i];
-            Button button = CreateButton(panel.transform, GetSlotLabel(type) + "を切替", new Vector2(.06f, .25f - i * .09f), new Vector2(.52f, .32f - i * .09f));
+            Button button = CreateButton(panel.transform, GetSlotLabel(type) + "を切替", new Vector2(.06f, .23f - i * .09f), new Vector2(.50f, .30f - i * .09f));
             CarPartType capturedType = type;
             button.onClick.AddListener(() => EquipNext(capturedType));
         }
 
-        CreateStatRow("Grip", "GRIP", .76f, new Color(.2f, .85f, .35f));
-        CreateStatRow("Accel", "ACCEL", .64f, new Color(1f, .46f, .12f));
-        CreateStatRow("Handling", "STEERING", .52f, new Color(.22f, .6f, 1f));
-        CreateStatRow("Speed", "SPEED", .40f, new Color(1f, .86f, .18f));
+        CreateStatRow("Grip", "GRIP", .74f, new Color(.2f, .85f, .35f));
+        CreateStatRow("Accel", "ACCEL", .61f, new Color(1f, .46f, .12f));
+        CreateStatRow("Handling", "STEERING", .48f, new Color(.22f, .6f, 1f));
+        CreateStatRow("Speed", "SPEED", .35f, new Color(1f, .86f, .18f));
 
-        Button closeButton = CreateButton(panel.transform, "街へ戻る", new Vector2(.62f, .18f), new Vector2(.94f, .27f));
+        Button closeButton = CreateButton(panel.transform, "街へ戻る", new Vector2(.60f, .18f), new Vector2(.92f, .27f));
         closeButton.onClick.AddListener(CloseGarage);
     }
 
