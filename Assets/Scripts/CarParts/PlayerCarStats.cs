@@ -16,6 +16,12 @@ public class PlayerCarStats : MonoBehaviour
     [Tooltip("現在装備中のシャーシです。")]
     [SerializeField] private CarPartData equippedChassis;
 
+    [Tooltip("現在装備中のマフラーです。")]
+    [SerializeField] private CarPartData equippedMuffler;
+
+    [Tooltip("現在装備中のボディです。")]
+    [SerializeField] private CarPartData equippedBody;
+
     [Header("所持パーツ")]
     [Tooltip("ショップで購入済みのパーツ一覧です。")]
     [SerializeField] private List<CarPartData> ownedParts = new List<CarPartData>();
@@ -30,17 +36,29 @@ public class PlayerCarStats : MonoBehaviour
     [Tooltip("パーツ未装備時の旋回性能です。")]
     [SerializeField] private float baseHandling = 120f;
 
+    [Tooltip("パーツ未装備時のタイヤグリップです。")]
+    [SerializeField] private float baseGrip = 1f;
+
+    [Tooltip("パーツ未装備時のドリフトしやすさです。")]
+    [SerializeField] private float baseDrift = 0.5f;
+
     [Header("現在のステータス（実行時表示）")]
     [SerializeField] private float currentMaxSpeed;
     [SerializeField] private float currentAcceleration;
     [SerializeField] private float currentHandling;
+    [SerializeField] private float currentGrip;
+    [SerializeField] private float currentDrift;
 
     public CarPartData EquippedEngine => equippedEngine;
     public CarPartData EquippedTire => equippedTire;
     public CarPartData EquippedChassis => equippedChassis;
+    public CarPartData EquippedMuffler => equippedMuffler;
+    public CarPartData EquippedBody => equippedBody;
     public float CurrentMaxSpeed => currentMaxSpeed;
     public float CurrentAcceleration => currentAcceleration;
     public float CurrentHandling => currentHandling;
+    public float CurrentGrip => currentGrip;
+    public float CurrentDrift => currentDrift;
     public IReadOnlyList<CarPartData> OwnedParts => ownedParts;
 
     private void Awake()
@@ -57,10 +75,14 @@ public class PlayerCarStats : MonoBehaviour
         currentMaxSpeed = baseMaxSpeed;
         currentAcceleration = baseAcceleration;
         currentHandling = baseHandling;
+        currentGrip = baseGrip;
+        currentDrift = baseDrift;
 
         AddPartBonus(equippedEngine);
         AddPartBonus(equippedTire);
         AddPartBonus(equippedChassis);
+        AddPartBonus(equippedMuffler);
+        AddPartBonus(equippedBody);
     }
 
     /// <summary>
@@ -77,6 +99,8 @@ public class PlayerCarStats : MonoBehaviour
         currentMaxSpeed += part.MaxSpeedBonus;
         currentAcceleration += part.AccelerationBonus;
         currentHandling += part.HandlingBonus;
+        currentGrip += part.GripBonus;
+        currentDrift += part.DriftBonus;
     }
 
     /// <summary>
@@ -103,6 +127,24 @@ public class PlayerCarStats : MonoBehaviour
     public void EquipChassis(CarPartData chassis)
     {
         equippedChassis = chassis;
+        CalculateStats();
+    }
+
+    /// <summary>
+    /// マフラーを装備し直し、加速や排気特性に関わる最終ステータスを再計算します。
+    /// </summary>
+    public void EquipMuffler(CarPartData muffler)
+    {
+        equippedMuffler = muffler;
+        CalculateStats();
+    }
+
+    /// <summary>
+    /// ボディを装備し直し、グリップやドリフト特性を含む最終ステータスを再計算します。
+    /// </summary>
+    public void EquipBody(CarPartData body)
+    {
+        equippedBody = body;
         CalculateStats();
     }
 

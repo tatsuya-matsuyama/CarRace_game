@@ -7,7 +7,9 @@ public enum CarPartType
 {
     Engine,
     Tire,
-    Chassis
+    Chassis,
+    Muffler,
+    Body
 }
 
 /// <summary>
@@ -42,6 +44,12 @@ public class CarPartData : ScriptableObject
     [Tooltip("車の旋回性能に加算する値です。")]
     [SerializeField] private float handlingBonus;
 
+    [Tooltip("タイヤグリップに加算する値です。プラスで安定、マイナスでドリフトしやすくなります。")]
+    [SerializeField] private float gripBonus;
+
+    [Tooltip("ドリフト中の横滑りしやすさに加算する値です。")]
+    [SerializeField] private float driftBonus;
+
     public CarPartType PartType => partType;
     public string PartName => partName;
     public string Description => description;
@@ -49,4 +57,6 @@ public class CarPartData : ScriptableObject
     public float MaxSpeedBonus => maxSpeedBonus;
     public float AccelerationBonus => accelerationBonus;
     public float HandlingBonus => handlingBonus;
+    public float GripBonus => gripBonus;
+    public float DriftBonus => driftBonus;
 }

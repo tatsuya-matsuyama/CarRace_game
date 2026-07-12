@@ -31,6 +31,7 @@ public class ArcadeCarController : MonoBehaviour
 
     /// <summary>現在のアクセル入力です。タコメーター表示用に公開します。</summary>
     public float ThrottleInput => throttleInput;
+    public bool IsControlEnabled => isControlEnabled;
 
     private void Awake()
     {
