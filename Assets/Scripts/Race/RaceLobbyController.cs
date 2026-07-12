@@ -273,6 +273,7 @@ public class RaceLobbyController : MonoBehaviour
         {
             lobbyPanel = existingPanel;
             lobbyText = existingPanel.GetComponentInChildren<Text>(true);
+            EnsureLobbyButtons(existingPanel.transform);
             GameObject legacyPanel = FindObjectIncludingInactive("RaceVenuePanel");
             if (legacyPanel != null)
             {
@@ -326,11 +327,51 @@ public class RaceLobbyController : MonoBehaviour
         lobbyText.horizontalOverflow = HorizontalWrapMode.Wrap;
         lobbyText.verticalOverflow = VerticalWrapMode.Overflow;
         lobbyText.color = Color.white;
+        EnsureLobbyButtons(lobbyPanel.transform);
 
         GameObject oldPanel = FindObjectIncludingInactive("RaceVenuePanel");
         if (oldPanel != null)
         {
             oldPanel.SetActive(false);
         }
+    }
+
+    private void EnsureLobbyButtons(Transform parent)
+    {
+        if (parent.Find("StartRaceButton") != null)
+        {
+            return;
+        }
+
+        CreateLobbyButton(parent, "PreviousCourseButton", "＜ コース変更", new Vector2(-190f, -190f), () => SelectCourse(-1));
+        CreateLobbyButton(parent, "StartRaceButton", "レース開始", new Vector2(0f, -190f), StartSelectedRace);
+        CreateLobbyButton(parent, "NextCourseButton", "コース変更 ＞", new Vector2(190f, -190f), () => SelectCourse(1));
+    }
+
+    private static void CreateLobbyButton(Transform parent, string objectName, string label, Vector2 position, UnityEngine.Events.UnityAction action)
+    {
+        GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
+        RectTransform rect = buttonObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(.5f, .5f);
+        rect.anchorMax = new Vector2(.5f, .5f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = new Vector2(170f, 48f);
+        buttonObject.GetComponent<Image>().color = new Color(.12f, .36f, .78f, 1f);
+        buttonObject.GetComponent<Button>().onClick.AddListener(action);
+
+        GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(Text));
+        textObject.transform.SetParent(buttonObject.transform, false);
+        RectTransform textRect = textObject.GetComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
+        Text text = textObject.GetComponent<Text>();
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.fontSize = 20;
+        text.alignment = TextAnchor.MiddleCenter;
+        text.color = Color.white;
+        text.text = label;
     }
 }

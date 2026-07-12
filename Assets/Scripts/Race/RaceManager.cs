@@ -20,6 +20,8 @@ public class RaceManager : MonoBehaviour
     private RaceCourseController currentCourse;
     private ArcadeCarController playerController;
     private RaceProgressTracker playerProgress;
+    private Vector3 playerPositionBeforeRace;
+    private Quaternion playerRotationBeforeRace;
 
     public bool IsRaceActive { get; private set; }
     public IReadOnlyList<RaceProgressTracker> Participants => participants;
@@ -48,13 +50,23 @@ public class RaceManager : MonoBehaviour
 
         currentCourse = course;
         playerController = player;
-        StartCoroutine(BeginRaceAfterCountdown());
+        playerPositionBeforeRace = player.transform.position;
+        playerRotationBeforeRace = player.transform.rotation;
+
+        RaceLoadingController loader = RaceLoadingController.Instance;
+        if (loader == null)
+        {
+            loader = new GameObject("RaceLoadingController").AddComponent<RaceLoadingController>();
+        }
+
+        loader.TransitionToCourse(course, () => StartCoroutine(BeginRaceAfterCountdown()));
     }
 
     private IEnumerator BeginRaceAfterCountdown()
     {
         GameManager.Instance?.ChangeState(GameManager.GameState.Race);
         playerController.SetControlEnabled(false);
+        SetRaceWorldVisibility(true);
         PrepareParticipants();
         for (int count = Mathf.CeilToInt(countdownSeconds); count > 0; count--)
         {
@@ -149,6 +161,18 @@ public class RaceManager : MonoBehaviour
         IsRaceActive = false;
         StartMessage = string.Empty;
         playerController?.SetControlEnabled(true);
+        if (playerController != null)
+        {
+            playerController.transform.SetPositionAndRotation(playerPositionBeforeRace, playerRotationBeforeRace);
+            Rigidbody playerBody = playerController.GetComponent<Rigidbody>();
+            if (playerBody != null)
+            {
+                playerBody.linearVelocity = Vector3.zero;
+                playerBody.angularVelocity = Vector3.zero;
+            }
+        }
+
+        SetRaceWorldVisibility(false);
         GameManager.Instance?.ChangeState(GameManager.GameState.Explore);
         ClearSpawnedOpponents();
     }
@@ -164,5 +188,20 @@ public class RaceManager : MonoBehaviour
         }
 
         spawnedOpponents.Clear();
+    }
+
+    private void SetRaceWorldVisibility(bool raceVisible)
+    {
+        // 固定2コースのうち選択コースだけを有効化し、街のCityMapはロード後に隠します。
+        foreach (RaceCourseController course in FindObjectsByType<RaceCourseController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            course.gameObject.SetActive(raceVisible && course == currentCourse);
+        }
+
+        GameObject cityMap = GameObject.Find("CityMap");
+        if (cityMap != null)
+        {
+            cityMap.SetActive(!raceVisible);
+        }
     }
 }
