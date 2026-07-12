@@ -23,6 +23,9 @@ public class RaceManager : MonoBehaviour
 
     public bool IsRaceActive { get; private set; }
     public IReadOnlyList<RaceProgressTracker> Participants => participants;
+    public RaceProgressTracker PlayerProgress => playerProgress;
+    public RaceCourseController CurrentCourse => currentCourse;
+    public string StartMessage { get; private set; } = string.Empty;
     public event Action<int, int> OnPlayerRaceFinished;
 
     private void Awake()
@@ -53,10 +56,17 @@ public class RaceManager : MonoBehaviour
         GameManager.Instance?.ChangeState(GameManager.GameState.Race);
         playerController.SetControlEnabled(false);
         PrepareParticipants();
-        yield return new WaitForSeconds(countdownSeconds);
+        for (int count = Mathf.CeilToInt(countdownSeconds); count > 0; count--)
+        {
+            StartMessage = $"READY {count}";
+            yield return new WaitForSeconds(1f);
+        }
 
         IsRaceActive = true;
+        StartMessage = "GO!";
         playerController.SetControlEnabled(true);
+        yield return new WaitForSeconds(1f);
+        StartMessage = string.Empty;
     }
 
     private void PrepareParticipants()
@@ -120,6 +130,7 @@ public class RaceManager : MonoBehaviour
         }
 
         IsRaceActive = false;
+        StartMessage = "FINISH!";
         playerController.SetControlEnabled(false);
         OnPlayerRaceFinished?.Invoke(rank, reward);
     }
@@ -136,6 +147,7 @@ public class RaceManager : MonoBehaviour
     public void EndRaceAndReturnToExplore()
     {
         IsRaceActive = false;
+        StartMessage = string.Empty;
         playerController?.SetControlEnabled(true);
         GameManager.Instance?.ChangeState(GameManager.GameState.Explore);
         ClearSpawnedOpponents();

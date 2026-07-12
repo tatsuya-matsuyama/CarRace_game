@@ -24,6 +24,7 @@ public class RaceLobbyController : MonoBehaviour
     private void Awake()
     {
         GetComponent<Collider>().isTrigger = true;
+        EnsureReferences();
         lobbyPanel?.SetActive(false);
         interactionPrompt?.SetActive(false);
     }
@@ -92,6 +93,7 @@ public class RaceLobbyController : MonoBehaviour
 
     private void OpenLobby()
     {
+        EnsureReferences();
         if (courses == null || courses.Length == 0 || raceManager == null || playerController == null)
         {
             return;
@@ -165,6 +167,11 @@ public class RaceLobbyController : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         ArcadeCarController controller = other.GetComponent<ArcadeCarController>();
+        if (controller == null && other.CompareTag("Player"))
+        {
+            controller = other.GetComponentInChildren<ArcadeCarController>();
+        }
+
         if (controller == null)
         {
             return;
@@ -187,5 +194,75 @@ public class RaceLobbyController : MonoBehaviour
 
         playerInRange = false;
         interactionPrompt?.SetActive(false);
+    }
+
+    private void EnsureReferences()
+    {
+        if (raceManager == null)
+        {
+            raceManager = FindFirstObjectByType<RaceManager>();
+        }
+
+        if (courses == null || courses.Length == 0)
+        {
+            courses = FindObjectsByType<RaceCourseController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        }
+
+        lobbyPanel ??= FindObjectIncludingInactive("RaceVenuePanel");
+        interactionPrompt ??= FindObjectIncludingInactive("RaceVenuePrompt");
+        if (lobbyText == null)
+        {
+            GameObject textObject = FindObjectIncludingInactive("RaceVenueText");
+            lobbyText = textObject != null ? textObject.GetComponent<Text>() : null;
+        }
+
+        if (lobbyPanel == null || lobbyText == null)
+        {
+            CreateFallbackLobbyUi();
+        }
+    }
+
+    private static GameObject FindObjectIncludingInactive(string objectName)
+    {
+        foreach (GameObject gameObject in FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (gameObject.name == objectName)
+            {
+                return gameObject;
+            }
+        }
+
+        return null;
+    }
+
+    private void CreateFallbackLobbyUi()
+    {
+        GameObject canvasObject = new GameObject("RaceLobbyFallbackCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        Canvas canvas = canvasObject.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 20;
+        canvasObject.GetComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+
+        lobbyPanel = new GameObject("RaceVenuePanel", typeof(RectTransform), typeof(Image));
+        lobbyPanel.transform.SetParent(canvasObject.transform, false);
+        RectTransform panelRect = lobbyPanel.GetComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(.22f, .22f);
+        panelRect.anchorMax = new Vector2(.78f, .78f);
+        panelRect.offsetMin = Vector2.zero;
+        panelRect.offsetMax = Vector2.zero;
+        lobbyPanel.GetComponent<Image>().color = new Color(.03f, .06f, .16f, .96f);
+
+        GameObject textObject = new GameObject("RaceVenueText", typeof(RectTransform), typeof(Text));
+        textObject.transform.SetParent(lobbyPanel.transform, false);
+        RectTransform textRect = textObject.GetComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = new Vector2(30f, 25f);
+        textRect.offsetMax = new Vector2(-30f, -25f);
+        lobbyText = textObject.GetComponent<Text>();
+        lobbyText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        lobbyText.fontSize = 24;
+        lobbyText.alignment = TextAnchor.MiddleCenter;
+        lobbyText.color = Color.white;
     }
 }
