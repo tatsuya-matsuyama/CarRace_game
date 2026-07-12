@@ -26,6 +26,10 @@ public class DialogueManager : MonoBehaviour
     [Tooltip("会話相手を注視する高さです。")]
     [SerializeField] private float eventCameraLookHeight = 0.8f;
 
+    [Header("会話中に隠すHUD")]
+    [Tooltip("未設定の場合は、シーン内のVehicleHUDを自動取得します。")]
+    [SerializeField] private GameObject vehicleHudRoot;
+
     private string[] currentDialogue;
     private int currentLineIndex;
     private ArcadeCarController playerCarController;
@@ -34,6 +38,7 @@ public class DialogueManager : MonoBehaviour
     private Vector3 cameraPositionBeforeDialogue;
     private Quaternion cameraRotationBeforeDialogue;
     private bool cameraWasControlledByChaseCamera;
+    private bool vehicleHudWasVisible;
 
     /// <summary>
     /// 会話中かどうかをNPC側から確認するためのプロパティです。
@@ -101,6 +106,7 @@ public class DialogueManager : MonoBehaviour
         playerCarController?.SetControlEnabled(false);
         GameManager.Instance?.ChangeState(GameManager.GameState.Dialogue);
 
+        HideVehicleHud();
         BeginEventCamera(focusTarget);
     }
 
@@ -138,6 +144,7 @@ public class DialogueManager : MonoBehaviour
         playerCarController?.SetControlEnabled(true);
         GameManager.Instance?.ChangeState(GameManager.GameState.Explore);
         EndEventCamera();
+        RestoreVehicleHud();
     }
 
     /// <summary>
@@ -189,5 +196,35 @@ public class DialogueManager : MonoBehaviour
 
         eventCamera = null;
         thirdPersonCamera = null;
+    }
+
+    private void HideVehicleHud()
+    {
+        if (vehicleHudRoot == null)
+        {
+            vehicleHudRoot = GameObject.Find("VehicleHUD");
+        }
+
+        if (vehicleHudRoot == null)
+        {
+            return;
+        }
+
+        // ミニマップとスピードメーターをまとめたCanvasを隠し、会話演出へ視線を集中させます。
+        vehicleHudWasVisible = vehicleHudRoot.activeSelf;
+        if (vehicleHudWasVisible)
+        {
+            vehicleHudRoot.SetActive(false);
+        }
+    }
+
+    private void RestoreVehicleHud()
+    {
+        if (vehicleHudRoot != null && vehicleHudWasVisible)
+        {
+            vehicleHudRoot.SetActive(true);
+        }
+
+        vehicleHudWasVisible = false;
     }
 }

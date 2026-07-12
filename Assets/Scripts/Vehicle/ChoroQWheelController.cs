@@ -28,6 +28,10 @@ public class ChoroQWheelController : MonoBehaviour
     [SerializeField] private float stuckRecoverySeconds = 2.5f;
     [SerializeField] private float stuckSpeedThresholdKmh = 1f;
 
+    [Header("壁への引っかかり対策")]
+    [SerializeField] private float collisionSlideForce = 2600f;
+    [SerializeField] private float collisionImpactDamping = 0.45f;
+
     private Rigidbody carRigidbody;
     private PlayerCarStats carStats;
     private ArcadeCarController inputGate;
@@ -37,6 +41,7 @@ public class ChoroQWheelController : MonoBehaviour
     private Vector3 safePosition;
     private Quaternion safeRotation;
     private float stuckTimer;
+    private Vector3 collisionEscapeDirection;
 
     /// <summary>診断UI・HUD用の現在速度です。</summary>
     public float CurrentSpeedKmh => carRigidbody != null ? carRigidbody.linearVelocity.magnitude * 3.6f : 0f;
@@ -58,6 +63,9 @@ public class ChoroQWheelController : MonoBehaviour
         Vector3 centerOfMass = carRigidbody.centerOfMass;
         centerOfMass.y = centerOfMassHeight;
         carRigidbody.centerOfMass = centerOfMass;
+        carRigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        carRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
+        ConfigureLowFrictionBodyCollider();
         safePosition = transform.position;
         safeRotation = transform.rotation;
     }
@@ -93,6 +101,7 @@ public class ChoroQWheelController : MonoBehaviour
         ApplySteering();
         ApplyMotorAndBrake();
         ApplyGrip();
+        ApplyCollisionSlide();
         carRigidbody.AddForce(-transform.up * carRigidbody.linearVelocity.magnitude * downforce, ForceMode.Force);
         UpdateSafePositionAndRecoverFromStuck();
     }
@@ -192,5 +201,75 @@ public class ChoroQWheelController : MonoBehaviour
         stuckTimer = 0f;
         GameManager.Instance?.ChangeState(GameManager.GameState.Explore);
         inputGate?.SetControlEnabled(true);
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        // 強い正面衝突時は、壁へ押し込み続けないよう速度の壁向き成分を弱めます。
+        if (collision.contactCount == 0)
+        {
+            return;
+        }
+
+        Vector3 escapeDirection = GetEscapeDirection(collision.GetContact(0));
+        float intoWallSpeed = Vector3.Dot(carRigidbody.linearVelocity, -escapeDirection);
+        if (intoWallSpeed > 2f)
+        {
+            carRigidbody.linearVelocity += escapeDirection * intoWallSpeed * (1f - collisionImpactDamping);
+        }
+    }
+
+    private void OnCollisionStay(Collision collision)
+    {
+        if (collision.contactCount == 0)
+        {
+            return;
+        }
+
+        // 接触面から車体中心へ向かう方向を保存し、FixedUpdateでわずかに壁から離す力として使います。
+        collisionEscapeDirection = GetEscapeDirection(collision.GetContact(0));
+    }
+
+    private void ApplyCollisionSlide()
+    {
+        if (collisionEscapeDirection == Vector3.zero)
+        {
+            return;
+        }
+
+        // アクセルを踏んで壁へ押し付けている間も、アーケードゲームらしく壁沿いへ滑りやすくします。
+        if (Mathf.Abs(throttleInput) > 0.2f)
+        {
+            carRigidbody.AddForce(collisionEscapeDirection * collisionSlideForce, ForceMode.Force);
+        }
+
+        collisionEscapeDirection = Vector3.zero;
+    }
+
+    private Vector3 GetEscapeDirection(ContactPoint contact)
+    {
+        Vector3 direction = transform.position - contact.point;
+        direction.y = 0f;
+        return direction.sqrMagnitude > 0.001f ? direction.normalized : Vector3.zero;
+    }
+
+    private void ConfigureLowFrictionBodyCollider()
+    {
+        Collider bodyCollider = GetComponent<Collider>();
+        if (bodyCollider == null)
+        {
+            return;
+        }
+
+        // 車体側の摩擦を低くし、壁・建物の角に当たった時に停止し続ける現象を抑えます。
+        PhysicMaterial slideMaterial = new PhysicMaterial("ChoroQ_BodySlide")
+        {
+            dynamicFriction = 0.05f,
+            staticFriction = 0.05f,
+            bounciness = 0f,
+            frictionCombine = PhysicMaterialCombine.Minimum,
+            bounceCombine = PhysicMaterialCombine.Minimum
+        };
+        bodyCollider.material = slideMaterial;
     }
 }
