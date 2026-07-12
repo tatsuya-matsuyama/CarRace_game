@@ -40,7 +40,8 @@ public class ChoroQMapGenerator : EditorWindow
 
         GUILayout.Space(10f);
 
-        using (new EditorGUI.DisabledScope(!CanGenerate()))
+        bool isPlaying = EditorApplication.isPlayingOrWillChangePlaymode;
+        using (new EditorGUI.DisabledScope(!CanGenerate() || isPlaying))
         {
             if (GUILayout.Button("街マップを生成する", GUILayout.Height(40f)))
             {
@@ -48,7 +49,11 @@ public class ChoroQMapGenerator : EditorWindow
             }
         }
 
-        if (!CanGenerate())
+        if (isPlaying)
+        {
+            EditorGUILayout.HelpBox("街マップの生成はPlayモードを停止してから実行してください。", MessageType.Warning);
+        }
+        else if (!CanGenerate())
         {
             EditorGUILayout.HelpBox("マップサイズ、区画数、道路幅を有効な範囲に設定してください。", MessageType.Warning);
         }
@@ -59,6 +64,14 @@ public class ChoroQMapGenerator : EditorWindow
     /// </summary>
     private void GenerateMap()
     {
+        // EditorSceneManagerのシーン変更APIはPlayモードでは利用できません。
+        // ボタンの無効化をすり抜けた呼び出しも安全に中止します。
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            EditorUtility.DisplayDialog("マップ生成", "Playモードを停止してから街マップを生成してください。", "OK");
+            return;
+        }
+
         GameObject existingMap = GameObject.Find(MapRootName);
         if (existingMap != null)
         {
