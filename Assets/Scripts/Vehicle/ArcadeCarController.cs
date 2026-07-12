@@ -24,6 +24,13 @@ public class ArcadeCarController : MonoBehaviour
     private Rigidbody carRigidbody;
     private float throttleInput;
     private float steeringInput;
+    private bool isControlEnabled = true;
+
+    /// <summary>現在の速度です。HUD表示用にkm/hへ換算しています。</summary>
+    public float CurrentSpeedKmh => carRigidbody != null ? carRigidbody.linearVelocity.magnitude * 3.6f : 0f;
+
+    /// <summary>現在のアクセル入力です。タコメーター表示用に公開します。</summary>
+    public float ThrottleInput => throttleInput;
 
     private void Awake()
     {
@@ -41,6 +48,13 @@ public class ArcadeCarController : MonoBehaviour
 
     private void Update()
     {
+        if (!isControlEnabled)
+        {
+            throttleInput = 0f;
+            steeringInput = 0f;
+            return;
+        }
+
         // 入力は Update で取得し、物理演算は FixedUpdate に任せます。
         // GetAxis は W/S・上下矢印、A/D・左右矢印を標準で扱えます。
         throttleInput = Input.GetAxis("Vertical");
@@ -52,6 +66,19 @@ public class ArcadeCarController : MonoBehaviour
         ApplyAcceleration();
         ApplySteering();
         LimitForwardSpeed();
+    }
+
+    /// <summary>
+    /// 会話やショップ画面の表示中に、プレイヤー車の入力を一時的に有効・無効化します。
+    /// </summary>
+    public void SetControlEnabled(bool enabled)
+    {
+        isControlEnabled = enabled;
+        if (!enabled)
+        {
+            throttleInput = 0f;
+            steeringInput = 0f;
+        }
     }
 
     /// <summary>
