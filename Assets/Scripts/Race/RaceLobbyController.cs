@@ -133,14 +133,24 @@ public class RaceLobbyController : MonoBehaviour
     private void StartSelectedRace()
     {
         RaceCourseController course = courses[selectedCourseIndex];
-        if (course == null)
+        if (course == null || playerController == null || raceManager == null)
         {
             return;
         }
 
+        // ボタン押下時点で先に車体をコースのグリッドへ移します。
+        // ロード演出やRaceManagerの状態待ちに関係なく、開始操作の結果が即座に見えるようにします。
+        MovePlayerToCourseGrid(course);
         lobbyPanel?.SetActive(false);
-        raceInProgress = true;
-        raceManager.StartRace(course, playerController);
+        raceInProgress = raceManager.StartRace(course, playerController);
+        if (!raceInProgress)
+        {
+            lobbyPanel?.SetActive(true);
+            if (lobbyText != null)
+            {
+                lobbyText.text = "レースを開始できませんでした。\nConsoleの警告を確認してください。";
+            }
+        }
     }
 
     private void ShowRaceResult(int rank, int reward)
@@ -151,6 +161,30 @@ public class RaceLobbyController : MonoBehaviour
         if (lobbyText != null)
         {
             lobbyText.text = $"RACE RESULT\n\n{rank} 位！\n獲得報酬: {reward} G\n\n[E] 街へ戻る";
+        }
+    }
+
+    private void MovePlayerToCourseGrid(RaceCourseController course)
+    {
+        course.gameObject.SetActive(true);
+        Transform startPoint = course.PlayerStartPoint;
+        if (startPoint == null)
+        {
+            return;
+        }
+
+        playerController.transform.SetPositionAndRotation(startPoint.position, startPoint.rotation);
+        Rigidbody body = playerController.GetComponent<Rigidbody>();
+        if (body != null)
+        {
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+        }
+
+        GameObject cityMap = GameObject.Find("CityMap");
+        if (cityMap != null)
+        {
+            cityMap.SetActive(false);
         }
     }
 

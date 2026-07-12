@@ -42,11 +42,12 @@ public class RaceManager : MonoBehaviour
         Instance = this;
     }
 
-    public void StartRace(RaceCourseController course, ArcadeCarController player)
+    public bool StartRace(RaceCourseController course, ArcadeCarController player)
     {
         if (IsRaceActive || isTransitioning || course == null || course.CourseData == null || course.CheckpointCount < 2 || player == null)
         {
-            return;
+            Debug.LogWarning("レースを開始できません。コース、プレイヤー、チェックポイント、または進行状態を確認してください。");
+            return false;
         }
 
         currentCourse = course;
@@ -69,6 +70,7 @@ public class RaceManager : MonoBehaviour
         }
 
         loader.TransitionToCourse(course, () => StartCoroutine(BeginRaceAfterCountdown()));
+        return true;
     }
 
     private IEnumerator BeginRaceAfterCountdown()
