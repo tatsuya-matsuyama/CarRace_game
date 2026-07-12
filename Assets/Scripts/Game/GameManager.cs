@@ -12,7 +12,10 @@ public class GameManager : MonoBehaviour
     {
         Explore,
         Dialogue,
-        Shop
+        Shop,
+        Race,
+        Paint,
+        Garage
     }
 
     [Header("ゲーム状態")]

@@ -97,4 +97,36 @@ public class ChoroQCarVisual : MonoBehaviour
 
         return material;
     }
+
+    /// <summary>
+    /// ペイント屋から呼び出し、生成済みの車体とストライプの色を即時に変更します。
+    /// 見た目専用のマテリアルだけを更新するため、車両の物理設定には影響しません。
+    /// </summary>
+    public void ApplyPaint(Color newBodyColor, Color newStripeColor)
+    {
+        bodyColor = newBodyColor;
+        stripeColor = newStripeColor;
+
+        foreach (Renderer renderer in GetComponentsInChildren<Renderer>())
+        {
+            Material material = renderer.material;
+            if (material.name.StartsWith("ChoroQ_Body"))
+            {
+                SetMaterialColor(material, bodyColor);
+            }
+            else if (material.name.StartsWith("ChoroQ_Stripe"))
+            {
+                SetMaterialColor(material, stripeColor);
+            }
+        }
+    }
+
+    private static void SetMaterialColor(Material material, Color color)
+    {
+        material.color = color;
+        if (material.HasProperty("_BaseColor"))
+        {
+            material.SetColor("_BaseColor", color);
+        }
+    }
 }
