@@ -87,6 +87,7 @@ public class ChoroQMapGenerator : EditorWindow
         CreateGroundAndRoads(mapRoot.transform);
         CreateBoundaryWalls(mapRoot.transform);
         CreateBlocks(mapRoot.transform);
+        CreateCityLandmarks(mapRoot.transform);
 
         Selection.activeGameObject = mapRoot;
         EditorSceneManager.MarkSceneDirty(mapRoot.scene);
@@ -164,6 +165,37 @@ public class ChoroQMapGenerator : EditorWindow
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// 箱庭を探索する目的地になる4施設を、道路沿いのランドマークとして必ず配置します。
+    /// 入口の会話・ショップ処理は、生成後に各施設へ対応するInteractionコンポーネントを追加して接続します。
+    /// </summary>
+    private void CreateCityLandmarks(Transform parent)
+    {
+        float distance = mapSize * 0.33f;
+        CreateLandmark(parent, "RaceVenue", "RACE", new Vector3(-distance, 2.5f, distance), new Color(0.8f, 0.15f, 0.1f));
+        CreateLandmark(parent, "PartsShop", "PARTS", new Vector3(distance, 2.5f, distance), new Color(0.95f, 0.42f, 0.08f));
+        CreateLandmark(parent, "PaintShop", "PAINT", new Vector3(-distance, 2.5f, -distance), new Color(0.12f, 0.38f, 0.86f));
+        CreateLandmark(parent, "Garage", "GARAGE", new Vector3(distance, 2.5f, -distance), new Color(0.15f, 0.58f, 0.25f));
+    }
+
+    private void CreateLandmark(Transform parent, string objectName, string signText, Vector3 position, Color color)
+    {
+        Material material = GetOrCreateMaterial(objectName + "Material", color);
+        GameObject building = CreateCube(parent, objectName, position, new Vector3(12f, 5f, 10f), material);
+
+        GameObject sign = new GameObject(objectName + "Sign", typeof(TextMesh));
+        sign.transform.SetParent(building.transform, false);
+        sign.transform.localPosition = new Vector3(0f, 0.8f, 0.52f);
+        sign.transform.localRotation = Quaternion.identity;
+        TextMesh textMesh = sign.GetComponent<TextMesh>();
+        textMesh.text = signText;
+        textMesh.anchor = TextAnchor.MiddleCenter;
+        textMesh.alignment = TextAlignment.Center;
+        textMesh.characterSize = 0.55f;
+        textMesh.fontSize = 42;
+        textMesh.color = Color.white;
     }
 
     /// <summary>
