@@ -23,12 +23,20 @@ public class ChoroQWheelController : MonoBehaviour
     [SerializeField] private float centerOfMassHeight = 0.18f;
     [SerializeField] private float downforce = 30f;
 
+    [Header("走行不能フェイルセーフ")]
+    [Tooltip("アクセルを踏み続けてもこの秒数だけ動かなければ、壁への埋まりから自動で抜け出します。")]
+    [SerializeField] private float stuckRecoverySeconds = 2.5f;
+    [SerializeField] private float stuckSpeedThresholdKmh = 1f;
+
     private Rigidbody carRigidbody;
     private PlayerCarStats carStats;
     private ArcadeCarController inputGate;
     private float throttleInput;
     private float steeringInput;
     private bool isDrifting;
+    private Vector3 safePosition;
+    private Quaternion safeRotation;
+    private float stuckTimer;
 
     private void Awake()
     {
@@ -43,14 +51,29 @@ public class ChoroQWheelController : MonoBehaviour
         Vector3 centerOfMass = carRigidbody.centerOfMass;
         centerOfMass.y = centerOfMassHeight;
         carRigidbody.centerOfMass = centerOfMass;
+        safePosition = transform.position;
+        safeRotation = transform.rotation;
     }
 
     private void Update()
     {
-        bool canControl = inputGate == null || inputGate.IsControlEnabled;
+        // 走行可否はゲーム状態を正とします。UIを閉じたのに旧コントローラーのフラグだけが
+        // falseで残っても、Exploreへ戻った時点で入力を必ず復旧できます。
+        bool canControl = GameManager.Instance == null || GameManager.Instance.CurrentState == GameManager.GameState.Explore;
+        if (canControl && inputGate != null && !inputGate.IsControlEnabled)
+        {
+            inputGate.SetControlEnabled(true);
+        }
+
         throttleInput = canControl ? Input.GetAxis("Vertical") : 0f;
         steeringInput = canControl ? Input.GetAxis("Horizontal") : 0f;
         isDrifting = canControl && Input.GetKey(KeyCode.Space);
+
+        // Rキーはデバッグ・動作確認用の手動復帰です。落下や物理スタック時に即座に戻せます。
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            RecoverToSafePosition();
+        }
     }
 
     private void FixedUpdate()
@@ -64,6 +87,7 @@ public class ChoroQWheelController : MonoBehaviour
         ApplyMotorAndBrake();
         ApplyGrip();
         carRigidbody.AddForce(-transform.up * carRigidbody.linearVelocity.magnitude * downforce, ForceMode.Force);
+        UpdateSafePositionAndRecoverFromStuck();
     }
 
     private void ApplySteering()
@@ -125,5 +149,41 @@ public class ChoroQWheelController : MonoBehaviour
         // エンジンなどの装備補正がある場合は、ScriptableObjectから算出済みの値を優先します。
         // PlayerCarStatsはUnity単位（m/s）で保持しているため、表示・制限用にkm/hへ換算します。
         return carStats != null ? carStats.CurrentMaxSpeed * 3.6f : maxSpeedKmh;
+    }
+
+    private void UpdateSafePositionAndRecoverFromStuck()
+    {
+        bool isGrounded = frontLeftWheel.isGrounded || frontRightWheel.isGrounded || rearLeftWheel.isGrounded || rearRightWheel.isGrounded;
+        float speedKmh = carRigidbody.linearVelocity.magnitude * 3.6f;
+
+        // 正常に地面を走れている場所を最後の安全地点として保存します。
+        if (isGrounded && transform.up.y > 0.4f && transform.position.y > -1f && speedKmh > stuckSpeedThresholdKmh)
+        {
+            safePosition = transform.position;
+            safeRotation = transform.rotation;
+            stuckTimer = 0f;
+            return;
+        }
+
+        bool isTryingToMove = Mathf.Abs(throttleInput) > 0.7f;
+        bool isStuck = isGrounded && isTryingToMove && speedKmh < stuckSpeedThresholdKmh;
+        stuckTimer = isStuck ? stuckTimer + Time.fixedDeltaTime : 0f;
+
+        // 地面の下へ落ちた、横転した、または壁へ押し付けたまま動けない場合に最後の安全地点へ戻します。
+        if (transform.position.y < -5f || transform.up.y < 0.15f || stuckTimer >= stuckRecoverySeconds)
+        {
+            RecoverToSafePosition();
+        }
+    }
+
+    private void RecoverToSafePosition()
+    {
+        carRigidbody.position = safePosition + Vector3.up * 0.5f;
+        carRigidbody.rotation = safeRotation;
+        carRigidbody.linearVelocity = Vector3.zero;
+        carRigidbody.angularVelocity = Vector3.zero;
+        stuckTimer = 0f;
+        GameManager.Instance?.ChangeState(GameManager.GameState.Explore);
+        inputGate?.SetControlEnabled(true);
     }
 }
