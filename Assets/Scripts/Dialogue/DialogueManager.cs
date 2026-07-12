@@ -16,8 +16,24 @@ public class DialogueManager : MonoBehaviour
     [Tooltip("会話文を表示するuGUI Textです。")]
     [SerializeField] private Text dialogueText;
 
+    [Tooltip("会話相手の名前を表示するuGUI Textです。")]
+    [SerializeField] private Text speakerNameText;
+
+    [Header("イベントカメラ")]
+    [Tooltip("会話相手を映すカメラ位置のオフセットです。")]
+    [SerializeField] private Vector3 eventCameraOffset = new Vector3(3.5f, 2.2f, -3.5f);
+
+    [Tooltip("会話相手を注視する高さです。")]
+    [SerializeField] private float eventCameraLookHeight = 0.8f;
+
     private string[] currentDialogue;
     private int currentLineIndex;
+    private ArcadeCarController playerCarController;
+    private Camera eventCamera;
+    private ThirdPersonCamera thirdPersonCamera;
+    private Vector3 cameraPositionBeforeDialogue;
+    private Quaternion cameraRotationBeforeDialogue;
+    private bool cameraWasControlledByChaseCamera;
 
     /// <summary>
     /// 会話中かどうかをNPC側から確認するためのプロパティです。
@@ -50,6 +66,14 @@ public class DialogueManager : MonoBehaviour
     /// </summary>
     public void StartDialogue(string[] dialogueLines)
     {
+        StartDialogue(dialogueLines, "？？？", null);
+    }
+
+    /// <summary>
+    /// NPC名と注視対象を受け取り、HG風の会話イベントを開始します。
+    /// </summary>
+    public void StartDialogue(string[] dialogueLines, string speakerName, Transform focusTarget)
+    {
         if (dialogueLines == null || dialogueLines.Length == 0)
         {
             return;
@@ -67,9 +91,17 @@ public class DialogueManager : MonoBehaviour
             dialogueText.text = currentDialogue[currentLineIndex];
         }
 
-        // 会話中はプレイヤー車の移動を制限します。
-        // 例: ArcadeCarControllerの canControl / isInputEnabled などのフラグをfalseに設定します。
-        // 会話終了時には同じフラグをtrueへ戻してください。
+        if (speakerNameText != null)
+        {
+            speakerNameText.text = speakerName;
+        }
+
+        // 会話中はプレイヤー車の入力を止め、イベント画面中に走り出さないようにします。
+        playerCarController = FindFirstObjectByType<ArcadeCarController>();
+        playerCarController?.SetControlEnabled(false);
+        GameManager.Instance?.ChangeState(GameManager.GameState.Dialogue);
+
+        BeginEventCamera(focusTarget);
     }
 
     /// <summary>
@@ -103,6 +135,59 @@ public class DialogueManager : MonoBehaviour
             dialoguePanel.SetActive(false);
         }
 
-        // 会話終了時は、ここでArcadeCarControllerの移動許可フラグをtrueに戻します。
+        playerCarController?.SetControlEnabled(true);
+        GameManager.Instance?.ChangeState(GameManager.GameState.Explore);
+        EndEventCamera();
+    }
+
+    /// <summary>
+    /// 通常の追従カメラを停止し、NPCの側面から見せる会話用カメラへ切り替えます。
+    /// </summary>
+    private void BeginEventCamera(Transform focusTarget)
+    {
+        if (focusTarget == null)
+        {
+            return;
+        }
+
+        eventCamera = Camera.main;
+        if (eventCamera == null)
+        {
+            return;
+        }
+
+        cameraPositionBeforeDialogue = eventCamera.transform.position;
+        cameraRotationBeforeDialogue = eventCamera.transform.rotation;
+        thirdPersonCamera = eventCamera.GetComponent<ThirdPersonCamera>();
+        cameraWasControlledByChaseCamera = thirdPersonCamera != null && thirdPersonCamera.enabled;
+        if (thirdPersonCamera != null)
+        {
+            thirdPersonCamera.enabled = false;
+        }
+
+        eventCamera.transform.position = focusTarget.TransformPoint(eventCameraOffset);
+        Vector3 lookTarget = focusTarget.position + Vector3.up * eventCameraLookHeight;
+        eventCamera.transform.rotation = Quaternion.LookRotation(lookTarget - eventCamera.transform.position, Vector3.up);
+    }
+
+    /// <summary>
+    /// 会話終了時に、会話前の追従カメラ位置と制御状態を復元します。
+    /// </summary>
+    private void EndEventCamera()
+    {
+        if (eventCamera == null)
+        {
+            return;
+        }
+
+        eventCamera.transform.position = cameraPositionBeforeDialogue;
+        eventCamera.transform.rotation = cameraRotationBeforeDialogue;
+        if (thirdPersonCamera != null)
+        {
+            thirdPersonCamera.enabled = cameraWasControlledByChaseCamera;
+        }
+
+        eventCamera = null;
+        thirdPersonCamera = null;
     }
 }

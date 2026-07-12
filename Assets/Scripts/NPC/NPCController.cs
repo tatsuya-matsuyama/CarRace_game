@@ -12,6 +12,9 @@ public class NPCController : MonoBehaviour
     [TextArea(2, 5)]
     [SerializeField] private string[] dialogueLines;
 
+    [Tooltip("会話枠の名前プレートへ表示するNPC名です。")]
+    [SerializeField] private string npcName = "フォレスト";
+
     [Tooltip("プレイヤーとして扱うGameObjectのタグです。通常はPlayerを使用します。")]
     [SerializeField] private string playerTag = "Player";
 
@@ -51,7 +54,7 @@ public class NPCController : MonoBehaviour
 
         if (playerInRange && Input.GetKeyDown(KeyCode.E))
         {
-            DialogueManager.Instance.StartDialogue(dialogueLines);
+            DialogueManager.Instance.StartDialogue(dialogueLines, npcName, transform);
         }
     }
 
