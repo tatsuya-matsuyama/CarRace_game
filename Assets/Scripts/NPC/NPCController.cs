@@ -17,6 +17,7 @@ public class NPCController : MonoBehaviour
 
     private SphereCollider interactionCollider;
     private bool playerInRange;
+    private bool dialogueWasActive;
 
     private void Awake()
     {
@@ -28,9 +29,27 @@ public class NPCController : MonoBehaviour
 
     private void Update()
     {
+        if (DialogueManager.Instance == null)
+        {
+            return;
+        }
+
         // 会話中はDialogueManager側がEキーを次の行へ使うため、ここでは開始しません。
-        if (DialogueManager.Instance != null && playerInRange &&
-            !DialogueManager.Instance.IsDialogueActive && Input.GetKeyDown(KeyCode.E))
+        if (DialogueManager.Instance.IsDialogueActive)
+        {
+            dialogueWasActive = true;
+            return;
+        }
+
+        // 最終行を閉じたEキーで、そのまま同じ会話を再開しないようにします。
+        // 1フレーム待つことで、会話終了入力と会話開始入力を分離します。
+        if (dialogueWasActive)
+        {
+            dialogueWasActive = false;
+            return;
+        }
+
+        if (playerInRange && Input.GetKeyDown(KeyCode.E))
         {
             DialogueManager.Instance.StartDialogue(dialogueLines);
         }
