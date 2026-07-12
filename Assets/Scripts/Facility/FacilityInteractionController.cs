@@ -165,6 +165,13 @@ public class FacilityInteractionController : MonoBehaviour
 
         playerInRange = false;
         interactionPrompt?.SetActive(false);
+
+        // 入口の外へ出たのに操作停止だけ残らないよう、施設画面も必ず閉じます。
+        // Triggerの設定ミスやリスポーン時にも探索状態へ安全に復帰できます。
+        if (isOpen)
+        {
+            CloseFacility();
+        }
     }
 
     private GameManager.GameState GetGameState()
