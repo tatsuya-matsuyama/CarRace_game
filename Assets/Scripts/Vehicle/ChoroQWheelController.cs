@@ -38,6 +38,13 @@ public class ChoroQWheelController : MonoBehaviour
     private Quaternion safeRotation;
     private float stuckTimer;
 
+    /// <summary>診断UI・HUD用の現在速度です。</summary>
+    public float CurrentSpeedKmh => carRigidbody != null ? carRigidbody.linearVelocity.magnitude * 3.6f : 0f;
+
+    /// <summary>少なくとも1つの車輪が地面を捉えているかを返します。</summary>
+    public bool HasGroundContact => HasAllWheels() &&
+                                    (frontLeftWheel.isGrounded || frontRightWheel.isGrounded || rearLeftWheel.isGrounded || rearRightWheel.isGrounded);
+
     private void Awake()
     {
         carRigidbody = GetComponent<Rigidbody>();
