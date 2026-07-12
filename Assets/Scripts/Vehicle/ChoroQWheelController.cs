@@ -74,7 +74,9 @@ public class ChoroQWheelController : MonoBehaviour
     {
         // 走行可否はゲーム状態を正とします。UIを閉じたのに旧コントローラーのフラグだけが
         // falseで残っても、Exploreへ戻った時点で入力を必ず復旧できます。
-        bool canControl = GameManager.Instance == null || GameManager.Instance.CurrentState == GameManager.GameState.Explore;
+        bool canControl = GameManager.Instance == null ||
+                          GameManager.Instance.CurrentState == GameManager.GameState.Explore ||
+                          (RaceManager.Instance != null && RaceManager.Instance.IsRaceActive);
         if (canControl && inputGate != null && !inputGate.IsControlEnabled)
         {
             inputGate.SetControlEnabled(true);
@@ -262,13 +264,13 @@ public class ChoroQWheelController : MonoBehaviour
         }
 
         // 車体側の摩擦を低くし、壁・建物の角に当たった時に停止し続ける現象を抑えます。
-        PhysicMaterial slideMaterial = new PhysicMaterial("ChoroQ_BodySlide")
+        PhysicsMaterial slideMaterial = new PhysicsMaterial("ChoroQ_BodySlide")
         {
             dynamicFriction = 0.05f,
             staticFriction = 0.05f,
             bounciness = 0f,
-            frictionCombine = PhysicMaterialCombine.Minimum,
-            bounceCombine = PhysicMaterialCombine.Minimum
+            frictionCombine = PhysicsMaterialCombine.Minimum,
+            bounceCombine = PhysicsMaterialCombine.Minimum
         };
         bodyCollider.material = slideMaterial;
     }
