@@ -10,7 +10,8 @@ public class RaceHudController : MonoBehaviour
     private void OnGUI()
     {
         RaceManager manager = RaceManager.Instance;
-        if (manager == null || manager.CurrentCourse == null || manager.PlayerProgress == null)
+        // ゴール後は結果画面へ任せるため、Destroy済みNPCを含む順位HUDを表示しません。
+        if (manager == null || !manager.IsRaceActive || manager.CurrentCourse == null || manager.PlayerProgress == null)
         {
             return;
         }
