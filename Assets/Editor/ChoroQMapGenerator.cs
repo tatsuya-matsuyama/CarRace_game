@@ -127,7 +127,8 @@ public class ChoroQMapGenerator : EditorWindow
                     0.08f,
                     -mapSize * 0.5f + cellSize * (z + 0.5f));
 
-                bool isCentralPlaza = x == gridSize / 2 && z == gridSize / 2;
+                // 偶数区画でも原点付近を確実に空け、PlayerCarの初期位置と建物の重なりを防ぎます。
+                bool isCentralPlaza = Mathf.Abs(blockCenter.x) < cellSize && Mathf.Abs(blockCenter.z) < cellSize;
                 CreateCube(parent, isCentralPlaza ? "CentralPlaza" : "Lot", blockCenter,
                     new Vector3(lotSize, 0.12f, lotSize),
                     isCentralPlaza
