@@ -149,6 +149,8 @@ public class RaceManager : MonoBehaviour
 
     public List<RaceProgressTracker> GetStandings()
     {
+        // レース終了後にDestroyされたNPCのTrackerを除外し、HUD側の順位表示で参照しないようにします。
+        participants.RemoveAll(participant => participant == null);
         return participants
             .OrderBy(participant => participant.HasFinished ? 0 : 1)
             .ThenBy(participant => participant.HasFinished ? participant.FinishedTime : 0f)
@@ -175,6 +177,9 @@ public class RaceManager : MonoBehaviour
         SetRaceWorldVisibility(false);
         GameManager.Instance?.ChangeState(GameManager.GameState.Explore);
         ClearSpawnedOpponents();
+        participants.Clear();
+        playerProgress = null;
+        currentCourse = null;
     }
 
     private void ClearSpawnedOpponents()
