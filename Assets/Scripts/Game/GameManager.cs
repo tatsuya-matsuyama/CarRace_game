@@ -27,6 +27,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int initialGold;
 
     private int gold;
+    private ArcadeCarController playerCarController;
 
     /// <summary>所持金が変化した直後に、最新の所持金を通知します。</summary>
     public event Action<int> OnGoldChanged;
@@ -47,6 +48,26 @@ public class GameManager : MonoBehaviour
 
         Instance = this;
         gold = initialGold;
+    }
+
+    private void Update()
+    {
+        // 施設・会話UIが閉じた後に入力停止フラグだけ残る事故を防ぎます。
+        // Explore中に限るため、会話・ショップ・施設画面を開いている間の操作停止は維持されます。
+        if (currentState != GameState.Explore)
+        {
+            return;
+        }
+
+        if (playerCarController == null)
+        {
+            playerCarController = FindFirstObjectByType<ArcadeCarController>();
+        }
+
+        if (playerCarController != null && !playerCarController.IsControlEnabled)
+        {
+            playerCarController.SetControlEnabled(true);
+        }
     }
 
     /// <summary>

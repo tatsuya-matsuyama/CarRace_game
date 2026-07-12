@@ -139,6 +139,12 @@ public class ShopInteractionController : MonoBehaviour
         {
             interactionPrompt.SetActive(false);
         }
+
+        // 入店中に押し出し・リスポーンなどで入口の外へ出た場合も、入力停止を残さず探索へ戻します。
+        if (isShopOpen)
+        {
+            CloseShop();
+        }
     }
 
     private void RefreshStatus(string message)
