@@ -130,7 +130,8 @@ public class RaceLobbyController : MonoBehaviour
         RefreshCourseText();
     }
 
-    private void StartSelectedRace()
+    /// <summary>uGUIの「レース開始」ボタンとキーボード操作から呼ばれる開始処理です。</summary>
+    public void StartSelectedRace()
     {
         RaceCourseController course = courses[selectedCourseIndex];
         if (course == null || playerController == null || raceManager == null)
@@ -150,6 +151,24 @@ public class RaceLobbyController : MonoBehaviour
             {
                 lobbyText.text = "レースを開始できませんでした。\nConsoleの警告を確認してください。";
             }
+        }
+    }
+
+    /// <summary>uGUIの前コースボタンから呼ばれます。</summary>
+    public void SelectPreviousCourse()
+    {
+        if (!raceInProgress)
+        {
+            SelectCourse(-1);
+        }
+    }
+
+    /// <summary>uGUIの次コースボタンから呼ばれます。</summary>
+    public void SelectNextCourse()
+    {
+        if (!raceInProgress)
+        {
+            SelectCourse(1);
         }
     }
 
@@ -377,9 +396,9 @@ public class RaceLobbyController : MonoBehaviour
             return;
         }
 
-        CreateLobbyButton(parent, "PreviousCourseButton", "＜ コース変更", new Vector2(-190f, -190f), () => SelectCourse(-1));
+        CreateLobbyButton(parent, "PreviousCourseButton", "＜ コース変更", new Vector2(-190f, -190f), SelectPreviousCourse);
         CreateLobbyButton(parent, "StartRaceButton", "レース開始", new Vector2(0f, -190f), StartSelectedRace);
-        CreateLobbyButton(parent, "NextCourseButton", "コース変更 ＞", new Vector2(190f, -190f), () => SelectCourse(1));
+        CreateLobbyButton(parent, "NextCourseButton", "コース変更 ＞", new Vector2(190f, -190f), SelectNextCourse);
     }
 
     private static void CreateLobbyButton(Transform parent, string objectName, string label, Vector2 position, UnityEngine.Events.UnityAction action)
