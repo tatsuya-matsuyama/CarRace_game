@@ -25,6 +25,7 @@ public class RaceLobbyController : MonoBehaviour
     {
         GetComponent<Collider>().isTrigger = true;
         EnsureReferences();
+        CreateDedicatedLobbyUi();
         lobbyPanel?.SetActive(false);
         interactionPrompt?.SetActive(false);
     }
@@ -216,10 +217,7 @@ public class RaceLobbyController : MonoBehaviour
             lobbyText = textObject != null ? textObject.GetComponent<Text>() : null;
         }
 
-        if (lobbyPanel == null || lobbyText == null)
-        {
-            CreateFallbackLobbyUi();
-        }
+        if (lobbyPanel == null || lobbyText == null) CreateFallbackLobbyUi();
     }
 
     private static GameObject FindObjectIncludingInactive(string objectName)
@@ -264,5 +262,75 @@ public class RaceLobbyController : MonoBehaviour
         lobbyText.fontSize = 24;
         lobbyText.alignment = TextAnchor.MiddleCenter;
         lobbyText.color = Color.white;
+    }
+
+    private void CreateDedicatedLobbyUi()
+    {
+        // 以前の汎用施設パネルは生成タイミングによりText参照が切れることがあるため、
+        // レースだけは専用Canvasを必ず使い、コース選択画面が空になる問題を防ぎます。
+        GameObject existingPanel = FindObjectIncludingInactive("RaceCourseSelectPanel");
+        if (existingPanel != null)
+        {
+            lobbyPanel = existingPanel;
+            lobbyText = existingPanel.GetComponentInChildren<Text>(true);
+            GameObject legacyPanel = FindObjectIncludingInactive("RaceVenuePanel");
+            if (legacyPanel != null)
+            {
+                legacyPanel.SetActive(false);
+            }
+            return;
+        }
+
+        GameObject canvasObject = new GameObject("RaceCourseSelectCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        Canvas canvas = canvasObject.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 50;
+        canvasObject.GetComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        canvasObject.GetComponent<CanvasScaler>().referenceResolution = new Vector2(1920f, 1080f);
+
+        lobbyPanel = new GameObject("RaceCourseSelectPanel", typeof(RectTransform), typeof(Image));
+        lobbyPanel.transform.SetParent(canvasObject.transform, false);
+        RectTransform panelRect = lobbyPanel.GetComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(.2f, .18f);
+        panelRect.anchorMax = new Vector2(.8f, .82f);
+        panelRect.offsetMin = Vector2.zero;
+        panelRect.offsetMax = Vector2.zero;
+        lobbyPanel.GetComponent<Image>().color = new Color(.015f, .03f, .09f, .97f);
+
+        GameObject titleObject = new GameObject("Title", typeof(RectTransform), typeof(Text));
+        titleObject.transform.SetParent(lobbyPanel.transform, false);
+        RectTransform titleRect = titleObject.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0f, .8f);
+        titleRect.anchorMax = new Vector2(1f, 1f);
+        titleRect.offsetMin = Vector2.zero;
+        titleRect.offsetMax = Vector2.zero;
+        Text title = titleObject.GetComponent<Text>();
+        title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        title.fontSize = 36;
+        title.fontStyle = FontStyle.Bold;
+        title.alignment = TextAnchor.MiddleCenter;
+        title.color = new Color(1f, .85f, .2f);
+        title.text = "RACE ENTRY";
+
+        GameObject textObject = new GameObject("CourseDetails", typeof(RectTransform), typeof(Text));
+        textObject.transform.SetParent(lobbyPanel.transform, false);
+        RectTransform textRect = textObject.GetComponent<RectTransform>();
+        textRect.anchorMin = new Vector2(.08f, .08f);
+        textRect.anchorMax = new Vector2(.92f, .78f);
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
+        lobbyText = textObject.GetComponent<Text>();
+        lobbyText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        lobbyText.fontSize = 28;
+        lobbyText.alignment = TextAnchor.MiddleCenter;
+        lobbyText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        lobbyText.verticalOverflow = VerticalWrapMode.Overflow;
+        lobbyText.color = Color.white;
+
+        GameObject oldPanel = FindObjectIncludingInactive("RaceVenuePanel");
+        if (oldPanel != null)
+        {
+            oldPanel.SetActive(false);
+        }
     }
 }
