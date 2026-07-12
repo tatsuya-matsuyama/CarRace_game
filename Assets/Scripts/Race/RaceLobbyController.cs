@@ -130,46 +130,17 @@ public class RaceLobbyController : MonoBehaviour
         RefreshCourseText();
     }
 
-    /// <summary>uGUIの「レース開始」ボタンとキーボード操作から呼ばれる開始処理です。</summary>
-    public void StartSelectedRace()
+    private void StartSelectedRace()
     {
         RaceCourseController course = courses[selectedCourseIndex];
-        if (course == null || playerController == null || raceManager == null)
+        if (course == null)
         {
             return;
         }
 
-        // ボタン押下時点で先に車体をコースのグリッドへ移します。
-        // ロード演出やRaceManagerの状態待ちに関係なく、開始操作の結果が即座に見えるようにします。
-        MovePlayerToCourseGrid(course);
         lobbyPanel?.SetActive(false);
-        raceInProgress = raceManager.StartRace(course, playerController);
-        if (!raceInProgress)
-        {
-            lobbyPanel?.SetActive(true);
-            if (lobbyText != null)
-            {
-                lobbyText.text = "レースを開始できませんでした。\nConsoleの警告を確認してください。";
-            }
-        }
-    }
-
-    /// <summary>uGUIの前コースボタンから呼ばれます。</summary>
-    public void SelectPreviousCourse()
-    {
-        if (!raceInProgress)
-        {
-            SelectCourse(-1);
-        }
-    }
-
-    /// <summary>uGUIの次コースボタンから呼ばれます。</summary>
-    public void SelectNextCourse()
-    {
-        if (!raceInProgress)
-        {
-            SelectCourse(1);
-        }
+        raceInProgress = true;
+        raceManager.StartRace(course, playerController);
     }
 
     private void ShowRaceResult(int rank, int reward)
@@ -180,30 +151,6 @@ public class RaceLobbyController : MonoBehaviour
         if (lobbyText != null)
         {
             lobbyText.text = $"RACE RESULT\n\n{rank} 位！\n獲得報酬: {reward} G\n\n[E] 街へ戻る";
-        }
-    }
-
-    private void MovePlayerToCourseGrid(RaceCourseController course)
-    {
-        course.gameObject.SetActive(true);
-        Transform startPoint = course.PlayerStartPoint;
-        if (startPoint == null)
-        {
-            return;
-        }
-
-        playerController.transform.SetPositionAndRotation(startPoint.position, startPoint.rotation);
-        Rigidbody body = playerController.GetComponent<Rigidbody>();
-        if (body != null)
-        {
-            body.linearVelocity = Vector3.zero;
-            body.angularVelocity = Vector3.zero;
-        }
-
-        GameObject cityMap = GameObject.Find("CityMap");
-        if (cityMap != null)
-        {
-            cityMap.SetActive(false);
         }
     }
 
@@ -396,9 +343,9 @@ public class RaceLobbyController : MonoBehaviour
             return;
         }
 
-        CreateLobbyButton(parent, "PreviousCourseButton", "＜ コース変更", new Vector2(-190f, -190f), SelectPreviousCourse);
+        CreateLobbyButton(parent, "PreviousCourseButton", "＜ コース変更", new Vector2(-190f, -190f), () => SelectCourse(-1));
         CreateLobbyButton(parent, "StartRaceButton", "レース開始", new Vector2(0f, -190f), StartSelectedRace);
-        CreateLobbyButton(parent, "NextCourseButton", "コース変更 ＞", new Vector2(190f, -190f), SelectNextCourse);
+        CreateLobbyButton(parent, "NextCourseButton", "コース変更 ＞", new Vector2(190f, -190f), () => SelectCourse(1));
     }
 
     private static void CreateLobbyButton(Transform parent, string objectName, string label, Vector2 position, UnityEngine.Events.UnityAction action)
