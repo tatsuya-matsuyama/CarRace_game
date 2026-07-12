@@ -21,9 +21,6 @@ public class ArcadeCarController : MonoBehaviour
     [Tooltip("車体の重心を下げる量です。値を大きくすると横転しにくくなります。")]
     [SerializeField] private float centerOfMassHeight = -0.5f;
 
-    [Tooltip("速度がこの値未満のときは旋回入力を無視します。")]
-    [SerializeField] private float minimumTurningSpeed = 0.1f;
-
     private Rigidbody carRigidbody;
     private float throttleInput;
     private float steeringInput;
@@ -73,19 +70,20 @@ public class ArcadeCarController : MonoBehaviour
     }
 
     /// <summary>
-    /// 車が実際に前進または後退している場合だけヨー方向へ回転させます。
-    /// 停車中のその場旋回を禁止し、小回りの利く車らしい挙動にします。
+    /// 停車中を含め、常にヨー方向へ回転させます。
+    /// その場旋回を許可することで、狭い場所でも向きを変えやすいアーケードらしい操作感にします。
     /// </summary>
     private void ApplySteering()
     {
         float forwardSpeed = Vector3.Dot(carRigidbody.linearVelocity, transform.forward);
-        if (Mathf.Abs(forwardSpeed) < minimumTurningSpeed || Mathf.Approximately(steeringInput, 0f))
+        if (Mathf.Approximately(steeringInput, 0f))
         {
             return;
         }
 
-        // 後退時はハンドル操作を反転させ、実車と同じ旋回方向になるようにします。
-        float reverseCorrection = Mathf.Sign(forwardSpeed);
+        // 後退中だけハンドル操作を反転させ、実車と同じ旋回方向になるようにします。
+        // 停車中は通常方向で回転するため、その場旋回が可能です。
+        float reverseCorrection = forwardSpeed < 0f ? -1f : 1f;
         float yawDegrees = steeringInput * turnSpeed * reverseCorrection * Time.fixedDeltaTime;
         Quaternion nextRotation = carRigidbody.rotation * Quaternion.Euler(0f, yawDegrees, 0f);
         carRigidbody.MoveRotation(nextRotation);
