@@ -22,6 +22,7 @@ public class RaceManager : MonoBehaviour
     private RaceProgressTracker playerProgress;
     private Vector3 playerPositionBeforeRace;
     private Quaternion playerRotationBeforeRace;
+    private bool isTransitioning;
 
     public bool IsRaceActive { get; private set; }
     public IReadOnlyList<RaceProgressTracker> Participants => participants;
@@ -43,7 +44,7 @@ public class RaceManager : MonoBehaviour
 
     public void StartRace(RaceCourseController course, ArcadeCarController player)
     {
-        if (IsRaceActive || course == null || course.CourseData == null || course.CheckpointCount < 2 || player == null)
+        if (IsRaceActive || isTransitioning || course == null || course.CourseData == null || course.CheckpointCount < 2 || player == null)
         {
             return;
         }
@@ -52,6 +53,14 @@ public class RaceManager : MonoBehaviour
         playerController = player;
         playerPositionBeforeRace = player.transform.position;
         playerRotationBeforeRace = player.transform.rotation;
+        isTransitioning = true;
+        GameManager.Instance?.ChangeState(GameManager.GameState.Race);
+        playerController.SetControlEnabled(false);
+
+        // ロード演出の裏で先にレース世界を有効化し、確実にグリッドへ移動させます。
+        // コールバック失敗で車が街に残る問題を避けるため、移動処理はここで完了させます。
+        SetRaceWorldVisibility(true);
+        PrepareParticipants();
 
         RaceLoadingController loader = RaceLoadingController.Instance;
         if (loader == null)
@@ -64,10 +73,6 @@ public class RaceManager : MonoBehaviour
 
     private IEnumerator BeginRaceAfterCountdown()
     {
-        GameManager.Instance?.ChangeState(GameManager.GameState.Race);
-        playerController.SetControlEnabled(false);
-        SetRaceWorldVisibility(true);
-        PrepareParticipants();
         for (int count = Mathf.CeilToInt(countdownSeconds); count > 0; count--)
         {
             StartMessage = $"READY {count}";
@@ -75,6 +80,7 @@ public class RaceManager : MonoBehaviour
         }
 
         IsRaceActive = true;
+        isTransitioning = false;
         StartMessage = "GO!";
         playerController.SetControlEnabled(true);
         yield return new WaitForSeconds(1f);
@@ -142,6 +148,7 @@ public class RaceManager : MonoBehaviour
         }
 
         IsRaceActive = false;
+        isTransitioning = false;
         StartMessage = "FINISH!";
         playerController.SetControlEnabled(false);
         OnPlayerRaceFinished?.Invoke(rank, reward);
@@ -161,6 +168,7 @@ public class RaceManager : MonoBehaviour
     public void EndRaceAndReturnToExplore()
     {
         IsRaceActive = false;
+        isTransitioning = false;
         StartMessage = string.Empty;
         playerController?.SetControlEnabled(true);
         if (playerController != null)
