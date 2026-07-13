@@ -2,30 +2,46 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// レース開始、20台のNPC生成、順位計算、3位までの報酬を管理するSingletonです。
+/// レース開始、参加車両、チェックポイント順位、ラップタイム、報酬を一括管理するSingletonです。
 /// </summary>
 public class RaceManager : MonoBehaviour
 {
     public static RaceManager Instance { get; private set; }
 
+    [Header("レース設定")]
     [SerializeField] private GameObject opponentPrefab;
     [SerializeField] private int opponentCount = 20;
     [SerializeField] private float countdownSeconds = 3f;
+    [SerializeField, Min(.02f)] private float rankingUpdateInterval = .1f;
 
-    private readonly List<RaceProgressTracker> participants = new List<RaceProgressTracker>();
+    [Header("TextMeshPro HUD（任意）")]
+    [SerializeField] private TextMeshProUGUI positionText;
+    [SerializeField] private TextMeshProUGUI currentLapTimeText;
+    [SerializeField] private TextMeshProUGUI bestLapTimeText;
+
+    private readonly List<CarRaceTracker> participants = new List<CarRaceTracker>();
     private readonly List<GameObject> spawnedOpponents = new List<GameObject>();
+    private List<CarRaceTracker> standings = new List<CarRaceTracker>();
     private RaceCourseController currentCourse;
     private ArcadeCarController playerController;
-    private RaceProgressTracker playerProgress;
+    private CarRaceTracker playerTracker;
     private Vector3 playerPositionBeforeRace;
     private Quaternion playerRotationBeforeRace;
+    private float rankingElapsed;
 
+    /// <summary>レース開始からの総時間です。</summary>
+    public float RaceTimer { get; private set; }
+    /// <summary>プレイヤーが現在走っているラップの時間です。</summary>
+    public float CurrentLapTimer { get; private set; }
+    /// <summary>プレイヤーの最速ラップです。未記録時はInfinityです。</summary>
+    public float BestLapTime { get; private set; } = float.PositiveInfinity;
     public bool IsRaceActive { get; private set; }
-    public IReadOnlyList<RaceProgressTracker> Participants => participants;
-    public RaceProgressTracker PlayerProgress => playerProgress;
+    public IReadOnlyList<CarRaceTracker> Participants => participants;
+    public CarRaceTracker PlayerTracker => playerTracker;
     public RaceCourseController CurrentCourse => currentCourse;
     public string StartMessage { get; private set; } = string.Empty;
     public event Action<int, int> OnPlayerRaceFinished;
@@ -39,6 +55,25 @@ public class RaceManager : MonoBehaviour
         }
 
         Instance = this;
+    }
+
+    private void Update()
+    {
+        if (!IsRaceActive)
+        {
+            return;
+        }
+
+        RaceTimer += Time.deltaTime;
+        CurrentLapTimer += Time.deltaTime;
+        rankingElapsed += Time.deltaTime;
+        if (rankingElapsed >= rankingUpdateInterval)
+        {
+            rankingElapsed = 0f;
+            RecalculateStandings();
+        }
+
+        UpdateRaceUi();
     }
 
     public void StartRace(RaceCourseController course, ArcadeCarController player)
@@ -74,9 +109,15 @@ public class RaceManager : MonoBehaviour
             yield return new WaitForSeconds(1f);
         }
 
+        RaceTimer = 0f;
+        CurrentLapTimer = 0f;
+        BestLapTime = float.PositiveInfinity;
+        rankingElapsed = rankingUpdateInterval;
         IsRaceActive = true;
         StartMessage = "GO!";
         playerController.SetControlEnabled(true);
+        RecalculateStandings();
+        UpdateRaceUi();
         yield return new WaitForSeconds(1f);
         StartMessage = string.Empty;
     }
@@ -90,22 +131,18 @@ public class RaceManager : MonoBehaviour
         if (playerStart != null)
         {
             playerController.transform.SetPositionAndRotation(playerStart.position, playerStart.rotation);
-            Rigidbody playerBody = playerController.GetComponent<Rigidbody>();
-            if (playerBody != null)
-            {
-                playerBody.linearVelocity = Vector3.zero;
-                playerBody.angularVelocity = Vector3.zero;
-            }
+            ResetRigidbody(playerController.GetComponent<Rigidbody>());
         }
 
-        playerProgress = playerController.GetComponent<RaceProgressTracker>();
-        if (playerProgress == null)
+        playerTracker = playerController.GetComponent<CarRaceTracker>();
+        if (playerTracker == null)
         {
-            playerProgress = playerController.gameObject.AddComponent<RaceProgressTracker>();
+            playerTracker = playerController.gameObject.AddComponent<CarRaceTracker>();
         }
-
-        playerProgress.Initialize(currentCourse, "PLAYER", true);
-        participants.Add(playerProgress);
+        playerTracker.OnLapCompleted -= HandlePlayerLapCompleted;
+        playerTracker.OnLapCompleted += HandlePlayerLapCompleted;
+        playerTracker.Initialize(currentCourse, "PLAYER", true);
+        participants.Add(playerTracker);
 
         Transform[] starts = currentCourse.OpponentStartPoints;
         int count = Mathf.Min(opponentCount, starts != null ? starts.Length : 0);
@@ -121,19 +158,35 @@ public class RaceManager : MonoBehaviour
             opponent.SetActive(true);
             RaceOpponentController controller = opponent.GetComponent<RaceOpponentController>();
             controller.Initialize(currentCourse, $"NPC {i + 1:00}", i);
-            participants.Add(opponent.GetComponent<RaceProgressTracker>());
+            CarRaceTracker tracker = opponent.GetComponent<CarRaceTracker>();
+            if (tracker != null)
+            {
+                participants.Add(tracker);
+            }
             spawnedOpponents.Add(opponent);
         }
     }
 
-    public void NotifyParticipantFinished(RaceProgressTracker participant)
+    private void HandlePlayerLapCompleted(CarRaceTracker tracker)
+    {
+        // ゴールラップも含めて、通過直後のラップタイムを保存してから次周用にリセットします。
+        if (CurrentLapTimer > 0f && CurrentLapTimer < BestLapTime)
+        {
+            BestLapTime = CurrentLapTimer;
+        }
+        CurrentLapTimer = 0f;
+        UpdateRaceUi();
+    }
+
+    /// <summary>プレイヤーまたはAIがゴールした時に順位と報酬を確定します。</summary>
+    public void NotifyParticipantFinished(CarRaceTracker participant)
     {
         if (!IsRaceActive || participant == null || !participant.IsPlayer)
         {
             return;
         }
 
-        List<RaceProgressTracker> standings = GetStandings();
+        RecalculateStandings();
         int rank = standings.IndexOf(participant) + 1;
         int reward = currentCourse.CourseData.GetReward(rank);
         if (reward > 0)
@@ -147,38 +200,106 @@ public class RaceManager : MonoBehaviour
         OnPlayerRaceFinished?.Invoke(rank, reward);
     }
 
-    public List<RaceProgressTracker> GetStandings()
+    // 旧テストシーンに残ったRaceProgressTrackerとのコンパイル互換用です。
+    // 新規コースではCheckpoint + CarRaceTrackerだけを使用します。
+    [Obsolete("RaceProgressTracker is legacy. Use CarRaceTracker instead.")]
+    public void NotifyParticipantFinished(RaceProgressTracker legacyParticipant)
     {
-        participants.RemoveAll(participant => participant == null);
-        return participants
-            .OrderBy(participant => participant.HasFinished ? 0 : 1)
-            .ThenBy(participant => participant.HasFinished ? participant.FinishedTime : 0f)
-            .ThenByDescending(participant => participant.GetProgressScore())
+    }
+
+    /// <summary>
+    /// 周回数、最後に正規通過したチェックポイント、次のチェックポイントまでの距離の順で順位を再計算します。
+    /// </summary>
+    public void RecalculateStandings()
+    {
+        participants.RemoveAll(tracker => tracker == null);
+        standings = participants
+            .OrderBy(tracker => tracker.HasFinished ? 0 : 1)
+            .ThenBy(tracker => tracker.HasFinished ? tracker.FinishedTime : 0f)
+            .ThenByDescending(tracker => tracker.CurrentLap)
+            .ThenByDescending(tracker => tracker.LastCheckpointIndex)
+            .ThenBy(tracker => tracker.GetDistanceToNextCheckpoint())
             .ToList();
+    }
+
+    public List<CarRaceTracker> GetStandings()
+    {
+        RecalculateStandings();
+        return new List<CarRaceTracker>(standings);
+    }
+
+    /// <summary>TextMeshProのHUD参照を外部からまとめて設定します。</summary>
+    public void ConfigureRaceUi(TextMeshProUGUI position, TextMeshProUGUI currentLap, TextMeshProUGUI bestLap)
+    {
+        positionText = position;
+        currentLapTimeText = currentLap;
+        bestLapTimeText = bestLap;
+        UpdateRaceUi();
+    }
+
+    /// <summary>現在順位・現在ラップ・ベストラップをTextMeshPro HUDへ反映します。</summary>
+    public void UpdateRaceUi()
+    {
+        if (playerTracker == null)
+        {
+            return;
+        }
+
+        if (positionText != null)
+        {
+            int rank = standings.IndexOf(playerTracker) + 1;
+            positionText.text = $"POSITION  {Mathf.Max(1, rank)} / {participants.Count}";
+        }
+        if (currentLapTimeText != null)
+        {
+            currentLapTimeText.text = $"LAP TIME  {FormatTime(CurrentLapTimer)}";
+        }
+        if (bestLapTimeText != null)
+        {
+            bestLapTimeText.text = float.IsPositiveInfinity(BestLapTime)
+                ? "BEST  --:--.---"
+                : $"BEST  {FormatTime(BestLapTime)}";
+        }
     }
 
     public void EndRaceAndReturnToExplore()
     {
         IsRaceActive = false;
         StartMessage = string.Empty;
+        if (playerTracker != null)
+        {
+            playerTracker.OnLapCompleted -= HandlePlayerLapCompleted;
+        }
         playerController?.SetControlEnabled(true);
         if (playerController != null)
         {
             playerController.transform.SetPositionAndRotation(playerPositionBeforeRace, playerRotationBeforeRace);
-            Rigidbody playerBody = playerController.GetComponent<Rigidbody>();
-            if (playerBody != null)
-            {
-                playerBody.linearVelocity = Vector3.zero;
-                playerBody.angularVelocity = Vector3.zero;
-            }
+            ResetRigidbody(playerController.GetComponent<Rigidbody>());
         }
 
         SetRaceWorldVisibility(false);
         GameManager.Instance?.ChangeState(GameManager.GameState.Explore);
         ClearSpawnedOpponents();
         participants.Clear();
-        playerProgress = null;
+        standings.Clear();
+        playerTracker = null;
         currentCourse = null;
+    }
+
+    private static void ResetRigidbody(Rigidbody body)
+    {
+        if (body == null)
+        {
+            return;
+        }
+        body.linearVelocity = Vector3.zero;
+        body.angularVelocity = Vector3.zero;
+    }
+
+    private static string FormatTime(float time)
+    {
+        TimeSpan span = TimeSpan.FromSeconds(Mathf.Max(0f, time));
+        return $"{span.Minutes:00}:{span.Seconds:00}.{span.Milliseconds:000}";
     }
 
     private void ClearSpawnedOpponents()
@@ -190,13 +311,11 @@ public class RaceManager : MonoBehaviour
                 Destroy(opponent);
             }
         }
-
         spawnedOpponents.Clear();
     }
 
     private void SetRaceWorldVisibility(bool raceVisible)
     {
-        // 固定2コースのうち選択コースだけを有効化し、街のCityMapはロード後に隠します。
         foreach (RaceCourseController course in FindObjectsByType<RaceCourseController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
         {
             course.gameObject.SetActive(raceVisible && course == currentCourse);

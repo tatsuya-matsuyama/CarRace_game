@@ -11,14 +11,14 @@ public class RaceHudController : MonoBehaviour
     {
         RaceManager manager = RaceManager.Instance;
         // ゴール後は結果画面へ任せるため、Destroy済みNPCを含む順位HUDを表示しません。
-        if (manager == null || !manager.IsRaceActive || manager.CurrentCourse == null || manager.PlayerProgress == null)
+        if (manager == null || !manager.IsRaceActive || manager.CurrentCourse == null || manager.PlayerTracker == null)
         {
             return;
         }
 
-        RaceProgressTracker player = manager.PlayerProgress;
-        int lap = Mathf.Min(player.CompletedLaps + 1, manager.CurrentCourse.CourseData.LapCount);
-        List<RaceProgressTracker> standings = manager.GetStandings();
+        CarRaceTracker player = manager.PlayerTracker;
+        int lap = Mathf.Min(player.CurrentLap + 1, manager.CurrentCourse.CourseData.LapCount);
+        List<CarRaceTracker> standings = manager.GetStandings();
         int rank = standings.IndexOf(player) + 1;
 
         GUI.Box(new Rect(20f, 20f, 245f, 78f), "RACE STATUS");
