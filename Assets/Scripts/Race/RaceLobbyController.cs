@@ -1,9 +1,10 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// レース会場の入口で開くコース選択画面です。
-/// あらかじめシーンへ配置した2コース以上を選び、Enter/Eでレースを開始します。
+/// レース会場の入口で開くコース選択画面を管理します。
+/// コース一覧、選択中コースの詳細、レース開始を1画面にまとめます。
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class RaceLobbyController : MonoBehaviour
@@ -12,7 +13,6 @@ public class RaceLobbyController : MonoBehaviour
     [SerializeField] private RaceCourseController[] courses;
     [SerializeField] private GameObject lobbyPanel;
     [SerializeField] private GameObject interactionPrompt;
-    [SerializeField] private Text lobbyText;
 
     private ArcadeCarController playerController;
     private bool playerInRange;
@@ -20,13 +20,24 @@ public class RaceLobbyController : MonoBehaviour
     private bool isShowingResult;
     private bool raceInProgress;
     private int selectedCourseIndex;
+    private GameObject selectionContent;
+    private GameObject resultContent;
+    private Text courseNameText;
+    private Text japaneseNameText;
+    private Text descriptionText;
+    private Text difficultyText;
+    private Text distanceText;
+    private Text recordText;
+    private Text resultText;
+    private Image previewBackground;
+    private readonly List<Image> courseListBackgrounds = new List<Image>();
 
     private void Awake()
     {
         GetComponent<Collider>().isTrigger = true;
         EnsureReferences();
-        CreateDedicatedLobbyUi();
-        lobbyPanel?.SetActive(false);
+        CreateCourseSelectUi();
+        lobbyPanel.SetActive(false);
         interactionPrompt?.SetActive(false);
     }
 
@@ -68,7 +79,7 @@ public class RaceLobbyController : MonoBehaviour
             return;
         }
 
-        // レース中はコース選択の入力を受け取らず、車両操作だけをRaceManagerへ渡します。
+        // レース中はロビーの操作を止め、走行操作はRaceManagerへ渡します。
         if (raceInProgress)
         {
             return;
@@ -105,9 +116,11 @@ public class RaceLobbyController : MonoBehaviour
         raceInProgress = false;
         playerController.SetControlEnabled(false);
         GameManager.Instance?.ChangeState(GameManager.GameState.Race);
-        lobbyPanel?.SetActive(true);
+        lobbyPanel.SetActive(true);
         interactionPrompt?.SetActive(false);
-        RefreshCourseText();
+        selectionContent.SetActive(true);
+        resultContent.SetActive(false);
+        RefreshCourseUi();
     }
 
     private void CloseLobby()
@@ -115,9 +128,8 @@ public class RaceLobbyController : MonoBehaviour
         isLobbyOpen = false;
         isShowingResult = false;
         raceInProgress = false;
-        lobbyPanel?.SetActive(false);
+        lobbyPanel.SetActive(false);
         raceManager?.EndRaceAndReturnToExplore();
-
         if (playerInRange)
         {
             interactionPrompt?.SetActive(true);
@@ -126,19 +138,35 @@ public class RaceLobbyController : MonoBehaviour
 
     private void SelectCourse(int direction)
     {
+        if (courses == null || courses.Length == 0)
+        {
+            return;
+        }
+
         selectedCourseIndex = (selectedCourseIndex + direction + courses.Length) % courses.Length;
-        RefreshCourseText();
+        RefreshCourseUi();
+    }
+
+    private void SelectCourseByIndex(int index)
+    {
+        selectedCourseIndex = index;
+        RefreshCourseUi();
     }
 
     private void StartSelectedRace()
     {
+        if (courses == null || selectedCourseIndex < 0 || selectedCourseIndex >= courses.Length)
+        {
+            return;
+        }
+
         RaceCourseController course = courses[selectedCourseIndex];
         if (course == null)
         {
             return;
         }
 
-        lobbyPanel?.SetActive(false);
+        lobbyPanel.SetActive(false);
         raceInProgress = true;
         raceManager.StartRace(course, playerController);
     }
@@ -147,22 +175,40 @@ public class RaceLobbyController : MonoBehaviour
     {
         isShowingResult = true;
         raceInProgress = false;
-        lobbyPanel?.SetActive(true);
-        if (lobbyText != null)
-        {
-            lobbyText.text = $"RACE RESULT\n\n{rank} 位！\n獲得報酬: {reward} G\n\n[E] 街へ戻る";
-        }
+        lobbyPanel.SetActive(true);
+        selectionContent.SetActive(false);
+        resultContent.SetActive(true);
+        resultText.text = $"RACE RESULT\n\n{rank} 位！\n獲得報酬: {reward} G\n\n[E] 街へ戻る";
     }
 
-    private void RefreshCourseText()
+    private void RefreshCourseUi()
     {
-        RaceCourseData data = courses[selectedCourseIndex].CourseData;
-        if (lobbyText == null || data == null)
+        if (courses == null || courses.Length == 0 || selectedCourseIndex >= courses.Length)
         {
             return;
         }
 
-        lobbyText.text = $"RACE COURSE SELECT\n\n{data.CourseName}\n{data.Description}\n\n周回数: {data.LapCount}\n1位 {data.GetReward(1)}G / 2位 {data.GetReward(2)}G / 3位 {data.GetReward(3)}G\n\n[A / D] コース選択    [E] レース開始";
+        RaceCourseData data = courses[selectedCourseIndex].CourseData;
+        if (data == null)
+        {
+            return;
+        }
+
+        CoursePresentation presentation = GetPresentation(selectedCourseIndex);
+        courseNameText.text = presentation.EnglishName;
+        japaneseNameText.text = data.CourseName;
+        descriptionText.text = data.Description;
+        difficultyText.text = presentation.Difficulty;
+        distanceText.text = presentation.Distance;
+        recordText.text = presentation.Record;
+        previewBackground.color = presentation.PreviewColor;
+
+        for (int i = 0; i < courseListBackgrounds.Count; i++)
+        {
+            courseListBackgrounds[i].color = i == selectedCourseIndex
+                ? presentation.AccentColor
+                : new Color(.08f, .12f, .19f, .86f);
+        }
     }
 
     private void OnTriggerEnter(Collider other)
@@ -209,15 +255,115 @@ public class RaceLobbyController : MonoBehaviour
             courses = FindObjectsByType<RaceCourseController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         }
 
-        lobbyPanel ??= FindObjectIncludingInactive("RaceVenuePanel");
         interactionPrompt ??= FindObjectIncludingInactive("RaceVenuePrompt");
-        if (lobbyText == null)
+    }
+
+    private void CreateCourseSelectUi()
+    {
+        // 旧画面を再利用する場合も中身を全て作り直すため、古いボタン・テキストの重なりを残しません。
+        lobbyPanel = FindObjectIncludingInactive("RaceCourseSelectPanel");
+        if (lobbyPanel == null)
         {
-            GameObject textObject = FindObjectIncludingInactive("RaceVenueText");
-            lobbyText = textObject != null ? textObject.GetComponent<Text>() : null;
+            GameObject canvasObject = new GameObject("RaceCourseSelectCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            Canvas canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 50;
+            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            lobbyPanel = new GameObject("RaceCourseSelectPanel", typeof(RectTransform), typeof(Image));
+            lobbyPanel.transform.SetParent(canvasObject.transform, false);
         }
 
-        if (lobbyPanel == null || lobbyText == null) CreateFallbackLobbyUi();
+        RectTransform panelRect = lobbyPanel.GetComponent<RectTransform>();
+        Stretch(panelRect, Vector2.zero, Vector2.one);
+        Image panelImage = lobbyPanel.GetComponent<Image>() ?? lobbyPanel.AddComponent<Image>();
+        panelImage.color = new Color(.01f, .02f, .05f, .97f);
+
+        List<GameObject> oldChildren = new List<GameObject>();
+        foreach (Transform child in lobbyPanel.transform)
+        {
+            oldChildren.Add(child.gameObject);
+        }
+        foreach (GameObject child in oldChildren)
+        {
+            Destroy(child);
+        }
+
+        selectionContent = CreatePanel(lobbyPanel.transform, "SelectionContent", new Vector2(.06f, .08f), new Vector2(.94f, .92f), Color.clear);
+        Text title = CreateText(selectionContent.transform, "Title", new Vector2(0f, .89f), new Vector2(.36f, 1f), 44, "COURSE SELECT");
+        title.alignment = TextAnchor.MiddleLeft;
+        title.fontStyle = FontStyle.BoldAndItalic;
+        Text subtitle = CreateText(selectionContent.transform, "Subtitle", new Vector2(0f, .85f), new Vector2(.42f, .90f), 15, "CHOOSE YOUR DESTINATION");
+        subtitle.alignment = TextAnchor.MiddleLeft;
+        subtitle.color = new Color(.58f, .66f, .76f);
+
+        BuildCourseList(selectionContent.transform);
+        BuildCourseDetail(selectionContent.transform);
+        BuildResultUi();
+    }
+
+    private void BuildCourseList(Transform parent)
+    {
+        courseListBackgrounds.Clear();
+        if (courses == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < courses.Length; i++)
+        {
+            RaceCourseData data = courses[i] != null ? courses[i].CourseData : null;
+            float top = .72f - i * .16f;
+            Button button = CreateButton(parent, "Course_" + i, new Vector2(0f, top), new Vector2(.31f, top + .12f), GetPresentation(i).EnglishName + "\n<size=14>" + (data != null ? data.CourseName : "NO DATA") + "</size>");
+            courseListBackgrounds.Add(button.GetComponent<Image>());
+            int capturedIndex = i;
+            button.onClick.AddListener(() => SelectCourseByIndex(capturedIndex));
+        }
+    }
+
+    private void BuildCourseDetail(Transform parent)
+    {
+        previewBackground = CreatePanel(parent, "CoursePreview", new Vector2(.38f, .55f), new Vector2(1f, .91f), new Color(.06f, .22f, .42f));
+        CreateText(previewBackground.transform, "PreviewGrid", new Vector2(.08f, .10f), new Vector2(.92f, .90f), 30, "COURSE PREVIEW\n<size=16>FIXED RACE COURSE</size>");
+        Image road = CreatePanel(previewBackground.transform, "PreviewRoad", new Vector2(.40f, 0f), new Vector2(.60f, 1f), new Color(.1f, .12f, .15f, .82f)).GetComponent<Image>();
+        road.transform.SetAsFirstSibling();
+
+        GameObject detail = CreatePanel(parent, "CourseDetail", new Vector2(.38f, .08f), new Vector2(1f, .50f), new Color(.04f, .07f, .12f, .95f));
+        courseNameText = CreateText(detail.transform, "EnglishName", new Vector2(.06f, .70f), new Vector2(.73f, .91f), 34, string.Empty);
+        courseNameText.alignment = TextAnchor.MiddleLeft;
+        courseNameText.fontStyle = FontStyle.BoldAndItalic;
+        japaneseNameText = CreateText(detail.transform, "JapaneseName", new Vector2(.06f, .62f), new Vector2(.72f, .72f), 17, string.Empty);
+        japaneseNameText.alignment = TextAnchor.MiddleLeft;
+        japaneseNameText.color = new Color(.65f, .7f, .78f);
+        CreateText(detail.transform, "DifficultyLabel", new Vector2(.76f, .77f), new Vector2(.94f, .90f), 13, "DIFFICULTY");
+        difficultyText = CreateText(detail.transform, "Difficulty", new Vector2(.76f, .64f), new Vector2(.94f, .80f), 24, string.Empty);
+        difficultyText.color = new Color(1f, .8f, .2f);
+        descriptionText = CreateText(detail.transform, "Description", new Vector2(.06f, .40f), new Vector2(.94f, .61f), 17, string.Empty);
+        descriptionText.alignment = TextAnchor.UpperLeft;
+        CreateInfoBox(detail.transform, "DISTANCE", out distanceText, new Vector2(.06f, .12f), new Vector2(.37f, .33f));
+        CreateInfoBox(detail.transform, "COURSE RECORD", out recordText, new Vector2(.41f, .12f), new Vector2(.72f, .33f));
+        Button entry = CreateButton(detail.transform, "Entry", new Vector2(.76f, .12f), new Vector2(.94f, .33f), "ENTRY  ▶");
+        entry.onClick.AddListener(StartSelectedRace);
+    }
+
+    private void BuildResultUi()
+    {
+        resultContent = CreatePanel(lobbyPanel.transform, "RaceResult", new Vector2(.31f, .27f), new Vector2(.69f, .73f), new Color(.03f, .06f, .12f, .98f));
+        resultText = CreateText(resultContent.transform, "ResultText", new Vector2(.05f, .08f), new Vector2(.95f, .92f), 28, string.Empty);
+        resultText.fontStyle = FontStyle.Bold;
+        resultContent.SetActive(false);
+    }
+
+    private static void CreateInfoBox(Transform parent, string label, out Text value, Vector2 min, Vector2 max)
+    {
+        GameObject box = CreatePanel(parent, label + "Box", min, max, new Color(.08f, .11f, .17f, 1f));
+        Text labelText = CreateText(box.transform, "Label", new Vector2(.08f, .53f), new Vector2(.92f, .91f), 12, label);
+        labelText.alignment = TextAnchor.MiddleLeft;
+        labelText.color = new Color(.55f, .63f, .73f);
+        value = CreateText(box.transform, "Value", new Vector2(.08f, .08f), new Vector2(.92f, .60f), 23, string.Empty);
+        value.alignment = TextAnchor.MiddleLeft;
+        value.fontStyle = FontStyle.BoldAndItalic;
     }
 
     private static GameObject FindObjectIncludingInactive(string objectName)
@@ -229,149 +375,85 @@ public class RaceLobbyController : MonoBehaviour
                 return gameObject;
             }
         }
-
         return null;
     }
 
-    private void CreateFallbackLobbyUi()
+    private static GameObject CreatePanel(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Color color)
     {
-        GameObject canvasObject = new GameObject("RaceLobbyFallbackCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-        Canvas canvas = canvasObject.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 20;
-        canvasObject.GetComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-
-        lobbyPanel = new GameObject("RaceVenuePanel", typeof(RectTransform), typeof(Image));
-        lobbyPanel.transform.SetParent(canvasObject.transform, false);
-        RectTransform panelRect = lobbyPanel.GetComponent<RectTransform>();
-        panelRect.anchorMin = new Vector2(.22f, .22f);
-        panelRect.anchorMax = new Vector2(.78f, .78f);
-        panelRect.offsetMin = Vector2.zero;
-        panelRect.offsetMax = Vector2.zero;
-        lobbyPanel.GetComponent<Image>().color = new Color(.03f, .06f, .16f, .96f);
-
-        GameObject textObject = new GameObject("RaceVenueText", typeof(RectTransform), typeof(Text));
-        textObject.transform.SetParent(lobbyPanel.transform, false);
-        RectTransform textRect = textObject.GetComponent<RectTransform>();
-        textRect.anchorMin = Vector2.zero;
-        textRect.anchorMax = Vector2.one;
-        textRect.offsetMin = new Vector2(30f, 25f);
-        textRect.offsetMax = new Vector2(-30f, -25f);
-        lobbyText = textObject.GetComponent<Text>();
-        lobbyText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        lobbyText.fontSize = 24;
-        lobbyText.alignment = TextAnchor.MiddleCenter;
-        lobbyText.color = Color.white;
+        GameObject gameObject = new GameObject(name, typeof(RectTransform), typeof(Image));
+        gameObject.transform.SetParent(parent, false);
+        Stretch(gameObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
+        Image image = gameObject.GetComponent<Image>();
+        image.color = color;
+        image.raycastTarget = false;
+        return gameObject;
     }
 
-    private void CreateDedicatedLobbyUi()
+    private static Button CreateButton(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, string label)
     {
-        // 以前の汎用施設パネルは生成タイミングによりText参照が切れることがあるため、
-        // レースだけは専用Canvasを必ず使い、コース選択画面が空になる問題を防ぎます。
-        GameObject existingPanel = FindObjectIncludingInactive("RaceCourseSelectPanel");
-        if (existingPanel != null)
-        {
-            lobbyPanel = existingPanel;
-            lobbyText = existingPanel.GetComponentInChildren<Text>(true);
-            EnsureLobbyButtons(existingPanel.transform);
-            GameObject legacyPanel = FindObjectIncludingInactive("RaceVenuePanel");
-            if (legacyPanel != null)
-            {
-                legacyPanel.SetActive(false);
-            }
-            return;
-        }
-
-        GameObject canvasObject = new GameObject("RaceCourseSelectCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-        Canvas canvas = canvasObject.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 50;
-        canvasObject.GetComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        canvasObject.GetComponent<CanvasScaler>().referenceResolution = new Vector2(1920f, 1080f);
-
-        lobbyPanel = new GameObject("RaceCourseSelectPanel", typeof(RectTransform), typeof(Image));
-        lobbyPanel.transform.SetParent(canvasObject.transform, false);
-        RectTransform panelRect = lobbyPanel.GetComponent<RectTransform>();
-        panelRect.anchorMin = new Vector2(.2f, .18f);
-        panelRect.anchorMax = new Vector2(.8f, .82f);
-        panelRect.offsetMin = Vector2.zero;
-        panelRect.offsetMax = Vector2.zero;
-        lobbyPanel.GetComponent<Image>().color = new Color(.015f, .03f, .09f, .97f);
-
-        GameObject titleObject = new GameObject("Title", typeof(RectTransform), typeof(Text));
-        titleObject.transform.SetParent(lobbyPanel.transform, false);
-        RectTransform titleRect = titleObject.GetComponent<RectTransform>();
-        titleRect.anchorMin = new Vector2(0f, .8f);
-        titleRect.anchorMax = new Vector2(1f, 1f);
-        titleRect.offsetMin = Vector2.zero;
-        titleRect.offsetMax = Vector2.zero;
-        Text title = titleObject.GetComponent<Text>();
-        title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        title.fontSize = 36;
-        title.fontStyle = FontStyle.Bold;
-        title.alignment = TextAnchor.MiddleCenter;
-        title.color = new Color(1f, .85f, .2f);
-        title.text = "RACE ENTRY";
-
-        GameObject textObject = new GameObject("CourseDetails", typeof(RectTransform), typeof(Text));
-        textObject.transform.SetParent(lobbyPanel.transform, false);
-        RectTransform textRect = textObject.GetComponent<RectTransform>();
-        textRect.anchorMin = new Vector2(.08f, .08f);
-        textRect.anchorMax = new Vector2(.92f, .78f);
-        textRect.offsetMin = Vector2.zero;
-        textRect.offsetMax = Vector2.zero;
-        lobbyText = textObject.GetComponent<Text>();
-        lobbyText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        lobbyText.fontSize = 28;
-        lobbyText.alignment = TextAnchor.MiddleCenter;
-        lobbyText.horizontalOverflow = HorizontalWrapMode.Wrap;
-        lobbyText.verticalOverflow = VerticalWrapMode.Overflow;
-        lobbyText.color = Color.white;
-        EnsureLobbyButtons(lobbyPanel.transform);
-
-        GameObject oldPanel = FindObjectIncludingInactive("RaceVenuePanel");
-        if (oldPanel != null)
-        {
-            oldPanel.SetActive(false);
-        }
+        GameObject gameObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+        gameObject.transform.SetParent(parent, false);
+        Stretch(gameObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
+        Image image = gameObject.GetComponent<Image>();
+        image.color = new Color(.08f, .12f, .19f, .9f);
+        Button button = gameObject.GetComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.highlightedColor = new Color(.16f, .45f, .72f, 1f);
+        colors.pressedColor = new Color(.05f, .25f, .42f, 1f);
+        button.colors = colors;
+        Text text = CreateText(gameObject.transform, "Text", Vector2.zero, Vector2.one, 20, label);
+        text.fontStyle = FontStyle.Bold;
+        return button;
     }
 
-    private void EnsureLobbyButtons(Transform parent)
+    private static Text CreateText(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, int size, string value)
     {
-        if (parent.Find("StartRaceButton") != null)
-        {
-            return;
-        }
-
-        CreateLobbyButton(parent, "PreviousCourseButton", "＜ コース変更", new Vector2(-190f, -190f), () => SelectCourse(-1));
-        CreateLobbyButton(parent, "StartRaceButton", "レース開始", new Vector2(0f, -190f), StartSelectedRace);
-        CreateLobbyButton(parent, "NextCourseButton", "コース変更 ＞", new Vector2(190f, -190f), () => SelectCourse(1));
-    }
-
-    private static void CreateLobbyButton(Transform parent, string objectName, string label, Vector2 position, UnityEngine.Events.UnityAction action)
-    {
-        GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
-        buttonObject.transform.SetParent(parent, false);
-        RectTransform rect = buttonObject.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(.5f, .5f);
-        rect.anchorMax = new Vector2(.5f, .5f);
-        rect.anchoredPosition = position;
-        rect.sizeDelta = new Vector2(170f, 48f);
-        buttonObject.GetComponent<Image>().color = new Color(.12f, .36f, .78f, 1f);
-        buttonObject.GetComponent<Button>().onClick.AddListener(action);
-
-        GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(Text));
-        textObject.transform.SetParent(buttonObject.transform, false);
-        RectTransform textRect = textObject.GetComponent<RectTransform>();
-        textRect.anchorMin = Vector2.zero;
-        textRect.anchorMax = Vector2.one;
-        textRect.offsetMin = Vector2.zero;
-        textRect.offsetMax = Vector2.zero;
-        Text text = textObject.GetComponent<Text>();
+        GameObject gameObject = new GameObject(name, typeof(RectTransform), typeof(Text));
+        gameObject.transform.SetParent(parent, false);
+        Stretch(gameObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
+        Text text = gameObject.GetComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 20;
+        text.fontSize = size;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = Color.white;
-        text.text = label;
+        text.supportRichText = true;
+        text.text = value;
+        text.raycastTarget = false;
+        return text;
+    }
+
+    private static void Stretch(RectTransform rect, Vector2 min, Vector2 max)
+    {
+        rect.anchorMin = min;
+        rect.anchorMax = max;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+    }
+
+    private static CoursePresentation GetPresentation(int index)
+    {
+        return index % 2 == 0
+            ? new CoursePresentation("SUNSET CIRCUIT", "★☆☆", "4.2 km", "--'--''---", new Color(.05f, .25f, .48f), new Color(.07f, .45f, .72f, .92f))
+            : new CoursePresentation("FOREST LOOP", "★★☆", "3.8 km", "--'--''---", new Color(.25f, .18f, .05f), new Color(.66f, .29f, .08f, .92f));
+    }
+
+    private readonly struct CoursePresentation
+    {
+        public readonly string EnglishName;
+        public readonly string Difficulty;
+        public readonly string Distance;
+        public readonly string Record;
+        public readonly Color PreviewColor;
+        public readonly Color AccentColor;
+
+        public CoursePresentation(string englishName, string difficulty, string distance, string record, Color previewColor, Color accentColor)
+        {
+            EnglishName = englishName;
+            Difficulty = difficulty;
+            Distance = distance;
+            Record = record;
+            PreviewColor = previewColor;
+            AccentColor = accentColor;
+        }
     }
 }
