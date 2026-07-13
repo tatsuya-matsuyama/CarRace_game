@@ -88,6 +88,10 @@ public class RaceManager : MonoBehaviour
         playerPositionBeforeRace = player.transform.position;
         playerRotationBeforeRace = player.transform.rotation;
 
+        // ロード演出の完了コールバックに依存せず、開始操作の直後に専用コースを有効化します。
+        // これによりロードUI側で問題が起きても、街に取り残される状態を防ぎます。
+        ActivateCourseAndMovePlayerToGrid();
+
         RaceLoadingController loader = RaceLoadingController.Instance;
         if (loader == null)
         {
@@ -127,12 +131,7 @@ public class RaceManager : MonoBehaviour
         ClearSpawnedOpponents();
         participants.Clear();
 
-        Transform playerStart = currentCourse.PlayerStartPoint;
-        if (playerStart != null)
-        {
-            playerController.transform.SetPositionAndRotation(playerStart.position, playerStart.rotation);
-            ResetRigidbody(playerController.GetComponent<Rigidbody>());
-        }
+        ActivateCourseAndMovePlayerToGrid();
 
         playerTracker = playerController.GetComponent<CarRaceTracker>();
         if (playerTracker == null)
@@ -294,6 +293,20 @@ public class RaceManager : MonoBehaviour
         }
         body.linearVelocity = Vector3.zero;
         body.angularVelocity = Vector3.zero;
+    }
+
+    /// <summary>選択コースだけを表示し、プレイヤーをスタートグリッドへ安全に移動します。</summary>
+    private void ActivateCourseAndMovePlayerToGrid()
+    {
+        SetRaceWorldVisibility(true);
+        if (currentCourse == null || playerController == null || currentCourse.PlayerStartPoint == null)
+        {
+            return;
+        }
+
+        Transform playerStart = currentCourse.PlayerStartPoint;
+        playerController.transform.SetPositionAndRotation(playerStart.position, playerStart.rotation);
+        ResetRigidbody(playerController.GetComponent<Rigidbody>());
     }
 
     private static string FormatTime(float time)
