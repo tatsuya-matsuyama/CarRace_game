@@ -309,6 +309,8 @@ public class RaceManager : MonoBehaviour
         Transform playerStart = currentCourse.PlayerStartPoint;
         playerController.transform.SetPositionAndRotation(playerStart.position, playerStart.rotation);
         ResetRigidbody(playerController.GetComponent<Rigidbody>());
+        // カメラ対象を明示的に再指定し、街の座標に固定されたままになる事故を防ぎます。
+        Camera.main?.GetComponent<ThirdPersonCamera>()?.SetTarget(playerController.transform, true);
     }
 
     private static string FormatTime(float time)

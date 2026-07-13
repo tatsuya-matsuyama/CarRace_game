@@ -21,18 +21,12 @@ public class ThirdPersonCamera : MonoBehaviour
 
     private void Awake()
     {
-        if (target == null)
-        {
-            GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null)
-            {
-                target = player.transform;
-            }
-        }
+        ResolveTargetIfNeeded();
     }
 
     private void LateUpdate()
     {
+        ResolveTargetIfNeeded();
         if (target == null)
         {
             return;
@@ -46,5 +40,32 @@ public class ThirdPersonCamera : MonoBehaviour
         // 注視点を少し上へずらし、車体と前方の道路を同時に見やすくします。
         Vector3 lookTarget = target.position + Vector3.up * lookAtHeight;
         transform.rotation = Quaternion.LookRotation(lookTarget - transform.position, Vector3.up);
+    }
+
+    /// <summary>レース開始時など、追従対象を明示的に切り替えるために使用します。</summary>
+    public void SetTarget(Transform newTarget, bool snapToTarget = false)
+    {
+        target = newTarget;
+        if (!snapToTarget || target == null)
+        {
+            return;
+        }
+
+        transform.position = target.TransformPoint(offset);
+        transform.rotation = Quaternion.LookRotation(target.position + Vector3.up * lookAtHeight - transform.position, Vector3.up);
+    }
+
+    private void ResolveTargetIfNeeded()
+    {
+        if (target != null)
+        {
+            return;
+        }
+
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null)
+        {
+            target = player.transform;
+        }
     }
 }
