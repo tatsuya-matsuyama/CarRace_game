@@ -6,7 +6,8 @@ using UnityEngine;
 /// </summary>
 public class VehicleRuntimeDiagnostics : MonoBehaviour
 {
-    [SerializeField] private bool showDiagnostics = true;
+    // 通常プレイでは表示しません。走行不能を調査する時だけInspectorから有効にします。
+    [SerializeField] private bool showDiagnostics;
 
     private ArcadeCarController arcadeController;
     private ChoroQWheelController wheelController;
