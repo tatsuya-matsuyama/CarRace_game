@@ -55,6 +55,15 @@ public class GarageEquipmentController : MonoBehaviour
 
     private void OnDestroy()
     {
+        // Camera.targetTexture を参照したまま RenderTexture を解放すると、
+        // Unity が "Releasing render texture that is set as Camera.targetTexture" を出します。
+        // 先にカメラ側の参照を外してから、生成順と逆順で後始末します。
+        if (previewCamera != null)
+        {
+            previewCamera.targetTexture = null;
+            Destroy(previewCamera.gameObject);
+        }
+
         if (previewTexture != null)
         {
             previewTexture.Release();
