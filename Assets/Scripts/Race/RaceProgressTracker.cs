@@ -58,7 +58,8 @@ public class RaceProgressTracker : MonoBehaviour
         {
             hasFinished = true;
             finishedTime = Time.time;
-            RaceManager.Instance.NotifyParticipantFinished(this);
+            // この旧トラッカーは既存シーンを壊さず読み込むためだけに残しています。
+            // 新規レースではCarRaceTrackerがTrigger通過とゴール通知を担当します。
         }
     }
 

@@ -9,7 +9,9 @@ public enum CarPartType
     Tire,
     Chassis,
     Muffler,
-    Body
+    Body,
+    Steering,
+    Transmission
 }
 
 /// <summary>

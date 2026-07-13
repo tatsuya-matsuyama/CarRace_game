@@ -2,21 +2,21 @@ using UnityEngine;
 
 /// <summary>
 /// レース専用コースをチェックポイント順に走るNPC車です。
-/// 交通NPCとは分離し、レース順位用のRaceProgressTrackerを持ちます。
+/// 交通NPCとは分離し、Trigger方式のCarRaceTrackerを持ちます。
 /// </summary>
-[RequireComponent(typeof(RaceProgressTracker))]
+[RequireComponent(typeof(CarRaceTracker))]
 public class RaceOpponentController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 15f;
     [SerializeField] private float turnSpeed = 7f;
 
     private RaceCourseController course;
-    private RaceProgressTracker progress;
+    private CarRaceTracker progress;
 
     public void Initialize(RaceCourseController raceCourse, string racerName, int seed)
     {
         course = raceCourse;
-        progress = GetComponent<RaceProgressTracker>();
+        progress = GetComponent<CarRaceTracker>();
         progress.Initialize(course, racerName, false);
         moveSpeed += (seed % 5 - 2) * 0.35f;
     }
@@ -43,5 +43,12 @@ public class RaceOpponentController : MonoBehaviour
 
         transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction.normalized), turnSpeed * Time.deltaTime);
         transform.position += transform.forward * moveSpeed * Time.deltaTime;
+
+        // AIはTransformで移動するため、通過距離内で同じ順番判定メソッドを呼びます。
+        // プレイヤーはCheckpointのTriggerから同じTryPassCheckpointへ入ります。
+        if (direction.sqrMagnitude <= 25f)
+        {
+            progress.TryPassCheckpoint(target.GetComponent<Checkpoint>());
+        }
     }
 }

@@ -22,6 +22,12 @@ public class PlayerCarStats : MonoBehaviour
     [Tooltip("現在装備中のボディです。")]
     [SerializeField] private CarPartData equippedBody;
 
+    [Tooltip("現在装備中のステアリングです。旋回性能へ主に影響します。")]
+    [SerializeField] private CarPartData equippedSteering;
+
+    [Tooltip("現在装備中のミッションです。最高速度へ主に影響します。")]
+    [SerializeField] private CarPartData equippedTransmission;
+
     [Header("所持パーツ")]
     [Tooltip("ショップで購入済みのパーツ一覧です。")]
     [SerializeField] private List<CarPartData> ownedParts = new List<CarPartData>();
@@ -54,6 +60,12 @@ public class PlayerCarStats : MonoBehaviour
     public CarPartData EquippedChassis => equippedChassis;
     public CarPartData EquippedMuffler => equippedMuffler;
     public CarPartData EquippedBody => equippedBody;
+    public CarPartData EquippedSteering => equippedSteering;
+    public CarPartData EquippedTransmission => equippedTransmission;
+    public float BaseMaxSpeed => baseMaxSpeed;
+    public float BaseAcceleration => baseAcceleration;
+    public float BaseHandling => baseHandling;
+    public float BaseGrip => baseGrip;
     public float CurrentMaxSpeed => currentMaxSpeed;
     public float CurrentAcceleration => currentAcceleration;
     public float CurrentHandling => currentHandling;
@@ -83,6 +95,8 @@ public class PlayerCarStats : MonoBehaviour
         AddPartBonus(equippedChassis);
         AddPartBonus(equippedMuffler);
         AddPartBonus(equippedBody);
+        AddPartBonus(equippedSteering);
+        AddPartBonus(equippedTransmission);
     }
 
     /// <summary>
@@ -146,6 +160,63 @@ public class PlayerCarStats : MonoBehaviour
     {
         equippedBody = body;
         CalculateStats();
+    }
+
+    /// <summary>
+    /// ステアリングを装備し直し、旋回性能を含む最終ステータスを更新します。
+    /// </summary>
+    public void EquipSteering(CarPartData steering)
+    {
+        equippedSteering = steering;
+        CalculateStats();
+    }
+
+    /// <summary>
+    /// ミッションを装備し直し、最高速度を含む最終ステータスを更新します。
+    /// </summary>
+    public void EquipTransmission(CarPartData transmission)
+    {
+        equippedTransmission = transmission;
+        CalculateStats();
+    }
+
+    /// <summary>
+    /// ガレージUIからパーツ種別に応じた装備スロットへ反映します。
+    /// 古いChassis/Muffler/Bodyも保持し、既存データを壊さず利用できます。
+    /// </summary>
+    public void EquipPart(CarPartData part)
+    {
+        if (part == null)
+        {
+            return;
+        }
+
+        switch (part.PartType)
+        {
+            case CarPartType.Engine: EquipEngine(part); break;
+            case CarPartType.Tire: EquipTire(part); break;
+            case CarPartType.Steering: EquipSteering(part); break;
+            case CarPartType.Transmission: EquipTransmission(part); break;
+            case CarPartType.Chassis: EquipChassis(part); break;
+            case CarPartType.Muffler: EquipMuffler(part); break;
+            case CarPartType.Body: EquipBody(part); break;
+        }
+    }
+
+    /// <summary>指定種類で現在装備中のパーツを返します。</summary>
+    public CarPartData GetEquippedPart(CarPartType partType)
+    {
+        return partType switch
+        {
+            CarPartType.Engine => equippedEngine,
+            CarPartType.Tire => equippedTire,
+            CarPartType.Steering => equippedSteering,
+            CarPartType.Transmission => equippedTransmission,
+            CarPartType.Chassis => equippedChassis,
+            CarPartType.Muffler => equippedMuffler,
+            CarPartType.Body => equippedBody,
+            _ => null
+        };
     }
 
     /// <summary>
