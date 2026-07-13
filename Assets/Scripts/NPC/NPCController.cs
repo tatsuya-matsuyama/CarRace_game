@@ -54,6 +54,8 @@ public class NPCController : MonoBehaviour
 
         if (playerInRange && Input.GetKeyDown(KeyCode.E))
         {
+            // AudioManagerへ "horn" を登録すると、話しかけた瞬間にクラクションを鳴らせます。
+            AudioManager.Instance?.PlaySE("horn");
             DialogueManager.Instance.StartDialogue(dialogueLines, npcName, transform);
         }
     }

@@ -112,6 +112,8 @@ public class RaceManager : MonoBehaviour
         for (int count = Mathf.CeilToInt(countdownSeconds); count > 0; count--)
         {
             StartMessage = $"READY {count}";
+            // AudioManagerへ "countdown_tick" を登録すると、レース開始カウント音を追加できます。
+            AudioManager.Instance?.PlaySE("countdown_tick");
             yield return new WaitForSeconds(1f);
         }
 
@@ -121,6 +123,7 @@ public class RaceManager : MonoBehaviour
         rankingElapsed = rankingUpdateInterval;
         IsRaceActive = true;
         StartMessage = "GO!";
+        AudioManager.Instance?.PlaySE("countdown_go");
         playerController.SetControlEnabled(true);
         RecalculateStandings();
         UpdateRaceUi();
