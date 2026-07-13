@@ -338,17 +338,31 @@ public class RaceManager : MonoBehaviour
             course.gameObject.SetActive(raceVisible && course == currentCourse);
         }
 
-        GameObject cityMap = GameObject.Find("CityMap");
+        GameObject cityMap = FindSceneObjectIncludingInactive("CityMap");
         if (cityMap != null)
         {
             cityMap.SetActive(!raceVisible);
         }
 
         // テストシーンの探索用Planeはレース道路を覆ってしまうため、専用コース中は隠します。
-        GameObject explorationGround = GameObject.Find("Ground");
+        GameObject explorationGround = FindSceneObjectIncludingInactive("Ground");
         if (explorationGround != null)
         {
             explorationGround.SetActive(!raceVisible);
         }
+    }
+
+    /// <summary>非アクティブ中の街オブジェクトも含めて名前から取得します。</summary>
+    private static GameObject FindSceneObjectIncludingInactive(string objectName)
+    {
+        foreach (GameObject gameObject in FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (gameObject.name == objectName)
+            {
+                return gameObject;
+            }
+        }
+
+        return null;
     }
 }
