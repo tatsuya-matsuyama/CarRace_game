@@ -324,7 +324,7 @@ public class RaceLobbyController : MonoBehaviour
 
     private void BuildCourseDetail(Transform parent)
     {
-        previewBackground = CreatePanel(parent, "CoursePreview", new Vector2(.38f, .55f), new Vector2(1f, .91f), new Color(.06f, .22f, .42f));
+        previewBackground = CreatePanel(parent, "CoursePreview", new Vector2(.38f, .55f), new Vector2(1f, .91f), new Color(.06f, .22f, .42f)).GetComponent<Image>();
         CreateText(previewBackground.transform, "PreviewGrid", new Vector2(.08f, .10f), new Vector2(.92f, .90f), 30, "COURSE PREVIEW\n<size=16>FIXED RACE COURSE</size>");
         Image road = CreatePanel(previewBackground.transform, "PreviewRoad", new Vector2(.40f, 0f), new Vector2(.60f, 1f), new Color(.1f, .12f, .15f, .82f)).GetComponent<Image>();
         road.transform.SetAsFirstSibling();
