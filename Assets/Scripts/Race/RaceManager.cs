@@ -80,6 +80,7 @@ public class RaceManager : MonoBehaviour
     {
         if (IsRaceActive || course == null || course.CourseData == null || course.CheckpointCount < 2 || player == null)
         {
+            Debug.LogError($"[RaceManager] レース開始を中止しました。Active={IsRaceActive}, Course={course != null}, Data={course != null && course.CourseData != null}, Checkpoints={(course != null ? course.CheckpointCount : 0)}, Player={player != null}");
             return;
         }
 
@@ -91,6 +92,7 @@ public class RaceManager : MonoBehaviour
         // ロード演出の完了コールバックに依存せず、開始操作の直後に専用コースを有効化します。
         // これによりロードUI側で問題が起きても、街に取り残される状態を防ぎます。
         ActivateCourseAndMovePlayerToGrid();
+        Debug.Log($"[RaceManager] コースへ移動: {course.CourseData.CourseName} / {player.transform.position}");
 
         RaceLoadingController loader = RaceLoadingController.Instance;
         if (loader == null)

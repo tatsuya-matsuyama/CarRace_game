@@ -155,17 +155,22 @@ public class RaceLobbyController : MonoBehaviour
 
     private void StartSelectedRace()
     {
+        // シーン上の参照が失われた場合でも、開始操作時に実体を再取得します。
+        raceManager ??= FindFirstObjectByType<RaceManager>();
         if (courses == null || selectedCourseIndex < 0 || selectedCourseIndex >= courses.Length)
         {
+            Debug.LogError("[RaceLobby] コース参照が設定されていないためレースを開始できません。");
             return;
         }
 
         RaceCourseController course = courses[selectedCourseIndex];
-        if (course == null)
+        if (course == null || raceManager == null || playerController == null)
         {
+            Debug.LogError($"[RaceLobby] 開始に必要な参照が不足しています。Course={course != null}, Manager={raceManager != null}, Player={playerController != null}");
             return;
         }
 
+        Debug.Log($"[RaceLobby] ENTRY: {(course.CourseData != null ? course.CourseData.CourseName : course.name)}");
         lobbyPanel.SetActive(false);
         raceInProgress = true;
         raceManager.StartRace(course, playerController);
@@ -260,6 +265,14 @@ public class RaceLobbyController : MonoBehaviour
 
     private void CreateCourseSelectUi()
     {
+        // 旧施設UIが残っていると、中央の透明パネルが新UIのボタン入力を遮ることがあります。
+        // 新しい専用ロビーだけを表示するため、ここでも確実に無効化します。
+        GameObject legacyPanel = FindObjectIncludingInactive("RaceVenuePanel");
+        if (legacyPanel != null)
+        {
+            legacyPanel.SetActive(false);
+        }
+
         // 旧画面を再利用する場合も中身を全て作り直すため、古いボタン・テキストの重なりを残しません。
         lobbyPanel = FindObjectIncludingInactive("RaceCourseSelectPanel");
         if (lobbyPanel == null)
