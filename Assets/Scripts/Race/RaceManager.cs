@@ -343,5 +343,12 @@ public class RaceManager : MonoBehaviour
         {
             cityMap.SetActive(!raceVisible);
         }
+
+        // テストシーンの探索用Planeはレース道路を覆ってしまうため、専用コース中は隠します。
+        GameObject explorationGround = GameObject.Find("Ground");
+        if (explorationGround != null)
+        {
+            explorationGround.SetActive(!raceVisible);
+        }
     }
 }
